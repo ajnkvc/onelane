@@ -1,0 +1,23 @@
+# Dependabot — wiederkehrende, automatisierte Update-PRs (Aktualität + Sicherheit).
+# Security-Updates priorisiert Dependabot automatisch. Major-Upgrades werden NICHT
+# als „klein" behandelt: gruppiert sind nur Patch/Minor; Majors kommen einzeln und
+# brauchen eigene Prüfung/Begründung (siehe SECURITY.md / Mission-Out-of-Scope).
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels: ["dependencies"]
+    groups:
+      # Risikoarme Patch-/Minor-Updates gebündelt; Majors bleiben separate PRs.
+      patch-and-minor:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    labels: ["github-actions"]
