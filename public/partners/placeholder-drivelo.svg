@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="176" height="44" viewBox="0 0 176 44" role="img" aria-label="Drivelo (Platzhalter)">
+<rect x="6" y="11" width="28" height="22" rx="6" fill="#2563eb"/>
+<circle cx="14" cy="33" r="3.4" fill="#0f2942"/><circle cx="26" cy="33" r="3.4" fill="#0f2942"/>
+<path d="M10 22h20M14 16h12l3 6" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="42" y="29" font-family="Arial,Helvetica,sans-serif" font-size="20" font-weight="700" fill="#0f2942">Drivelo</text>
+</svg>

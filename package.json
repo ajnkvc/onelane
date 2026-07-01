@@ -1,0 +1,72 @@
+{
+  "name": "onelane",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "packageManager": "npm@10.9.8",
+  "scripts": {
+    "dev": "next dev",
+    "build": "cross-env NEXT_PRIVATE_BUILD_WORKER=0 next build",
+    "start": "next start",
+    "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "security-check": "node scripts/security-check.mjs",
+    "prepare": "git config core.hooksPath .githooks 2>/dev/null || true",
+    "db:backup": "bash scripts/backup-db.sh",
+    "db:migrate": "node scripts/migrate.mjs",
+    "db:migrate:status": "node scripts/migrate.mjs --status",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:setup": "node --env-file=.env.development.local scripts/db-local.mjs",
+    "db:smoke": "node --env-file=.env.development.local scripts/db-smoke.mjs",
+    "db:import:osm": "node --env-file=.env.development.local scripts/import-osm.mjs",
+    "db:verify:sites": "node --env-file=.env.development.local scripts/verify-sites.mjs",
+    "db:review": "node --env-file=.env.development.local scripts/review-server.mjs",
+    "review:shots": "node --env-file=.env.development.local scripts/prep-screenshots.mjs"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.6.0",
+    "@supabase/ssr": "^0.12.0",
+    "@supabase/supabase-js": "^2.108.2",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "drizzle-orm": "^0.45.2",
+    "htmlparser2": "10.1.0",
+    "ipaddr.js": "2.4.0",
+    "leaflet": "^1.9.4",
+    "lucide-react": "^1.21.0",
+    "next": "16.2.9",
+    "postgres": "^3.4.9",
+    "react": "19.2.7",
+    "react-dom": "19.2.7",
+    "server-only": "^0.0.1",
+    "tailwind-merge": "^3.6.0",
+    "tw-animate-css": "^1.4.0",
+    "undici": "7.28.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.3",
+    "@tailwindcss/postcss": "^4",
+    "@types/leaflet": "^1.9.21",
+    "@types/node": "^22",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "cross-env": "^10.1.0",
+    "drizzle-kit": "^0.31.10",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.9",
+    "playwright": "^1.61.1",
+    "shadcn": "^4.11.0",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^4.1.9"
+  },
+  "overrides": {
+    "postcss": "^8.5.10",
+    "esbuild": ">=0.25.0"
+  }
+}

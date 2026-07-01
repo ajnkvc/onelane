@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" role="img" aria-label="Platzhalter Fahrschulauto">
+  <defs><linearGradient id="f" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0" stop-color="#0ea5e9"/><stop offset="1" stop-color="#1d4ed8"/>
+  </linearGradient></defs>
+  <rect width="800" height="450" fill="url(#f)"/>
+  <g fill="#ffffff" opacity="0.95">
+    <rect x="230" y="210" width="340" height="70" rx="20"/>
+    <path d="M300 210 l40 -45 h120 l40 45 z"/>
+    <circle cx="310" cy="285" r="32" fill="#1e3a8a"/><circle cx="310" cy="285" r="14" fill="#fff"/>
+    <circle cx="490" cy="285" r="32" fill="#1e3a8a"/><circle cx="490" cy="285" r="14" fill="#fff"/>
+  </g>
+  <text x="400" y="400" fill="#ffffff" opacity="0.85" font-family="sans-serif" font-size="22" text-anchor="middle">Fahrschulauto (Beispielbild)</text>
+</svg>

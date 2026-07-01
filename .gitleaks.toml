@@ -1,0 +1,39 @@
+# gitleaks-Konfiguration — Pre-Commit-/CI-Secret-Scan
+# Erweitert die mitgelieferten Standardregeln. WICHTIG (F-027/F-028): KEINE pauschale
+# Pfad-Allowlist mehr für .env.example oder package-lock.json — ein versehentlich echtes
+# Secret dort MUSS gefunden werden. Stattdessen nur eng definierte PLATZHALTER-Werte erlauben.
+
+title = "Fahrschul-Plattform gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Nur DSN-Zeilen mit reinen <platzhalter>-Passwörtern (kleinbuchstaben-Wörter) — KEIN echtes Secret."
+# regexTarget = DEFAULT (matched das gefundene Secret selbst, NICHT die ganze Zeile) — sonst würde eine
+# Zeile mit irgendeinem <wort> ein echtes Secret auf derselben Zeile mit-allowlisten.
+# Nur ein Passwort-Platzhalter aus reinen Kleinbuchstaben/Bindestrichen in <…> gilt als Vorlage; echte
+# Passwörter (Groß-/Ziffern/Sonderzeichen wie <realSecret123> oder abc<secret>def) matchen NICHT → werden gefunden.
+regexes = [
+  '''postgres(?:ql)?://[^\s:@/]+:<[a-z][a-z-]*>@''',
+  # Test-Fixtures/Doku-Beispiele mit TRIVIALEM Platzhalter-Passwort (pw/p/x/…/... ) — kein echtes Secret.
+  # `...`/`…` = Doku-Ellipse (DSN-Format-Beispiel). Reale Passwörter (lang/zufällig) matchen NICHT.
+  # `...` zusätzlich, damit auch die als '-'-Zeile im Commit-Diff verbleibende Alt-Fassung (raw/--pipe-Scans)
+  # sauber ist — der Git-Mode-Scan (CI) ignoriert entfernte Zeilen ohnehin.
+  '''postgres(?:ql)?://[^\s@]+:(pw|p|x|…|\.\.\.)@''',
+  # Stripe-Test-Fixtures für Redaction-Tests (sequenzielles ABCDEFGH…) — kein echter Key.
+  '''sk_(live|test)_ABCDEFGH12345678''',
+]
+
+# --- Projekt-spezifische Regeln (zusätzlich zu useDefault) -------------------
+# F-066: Passwort-Teil BREIT fassen (auch kurze/Sonderzeichen-Passwörter), damit echte DSNs
+# nicht durchs Raster fallen. Bekannte <…>-Platzhalter werden über die Allowlist oben ausgenommen.
+[[rules]]
+id = "onelane-postgres-dsn-credentials"
+description = "Postgres-DSN mit Klartext-Passwort"
+regex = '''postgres(?:ql)?://[^:@/\s]+:[^@\s]+@'''
+
+[[rules]]
+id = "onelane-supabase-secret-key"
+description = "Supabase Secret Key (neues sb_secret_-Format)"
+regex = '''sb_secret_[A-Za-z0-9_-]{20,}'''

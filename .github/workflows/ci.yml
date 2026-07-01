@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Laufende Runs bei neuem Push auf denselben Ref abbrechen.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# Minimaler Token-Scope (Default statt weitreichender Workflow-Defaults).
+# Beide Jobs brauchen nur Lesezugriff auf den Code.
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30 # F-065: hängende Builds/Skripte nicht bis zum Plattform-Default laufen lassen
+    steps:
+      - name: Checkout
+        # F-025: Actions auf vollständige Commit-SHA gepinnt (bewegliche Tags = Supply-Chain-Risiko).
+        # Updates nur bewusst über SHA-Wechsel. Kommentar = zum SHA gehörende Version.
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 1 # F-090: verify braucht keine Historie (Secret-Scan läuft im separaten secrets-Job)
+
+      - name: Setup Node
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: SCA (Lockfile, früh)
+        # F-064: bekannte Schwachstellen VOR Install/Build prüfen — rein lockfile-basiert, führt keinen
+        # Dependency-Code aus. Der vollständige Audit unten bleibt als zusätzliches Gate erhalten.
+        run: npm audit --package-lock-only --audit-level=moderate
+
+      - name: Install (npm ci, ohne Lifecycle-Skripte)
+        # F-026: --ignore-scripts verhindert, dass Dependency-Postinstall-Skripte VOR den Gates Code
+        # ausführen. Danach nur die bekannten nativen Pakete gezielt (allowlistet) rebuilden.
+        run: npm ci --ignore-scripts
+
+      - name: Native Rebuild (Allowlist)
+        # Nur explizit benötigte native Bindings (Test/Build/Lint): esbuild (vitest/tsx), sharp
+        # (next image), unrs-resolver (eslint-Import-Resolver). fsevents = macOS-only → auf ubuntu irrelevant.
+        run: npm rebuild esbuild sharp unrs-resolver
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Security-Check (Auto-Audit-Gate)
+        # Phase-0 #9: maschinelle Sicherheits-Invarianten (jede public-Tabelle hat RLS;
+        # keine erhöhten Tooling-Secrets im App-Pfad). Ergänzt Lint/Tests/Secret-Scan/Audit.
+        run: npm run security-check
+
+      - name: Build
+        env:
+          # Der Build ist fail-closed ohne Site-URL (robots/sitemap/canonical brauchen sie,
+          # kein localhost-Fallback in „Produktion"). In der CI wird nur VERIFIZIERT (Artefakt
+          # wird verworfen) → ein gültiger Platzhalter genügt. Echte URL setzt die Deploy-
+          # Umgebung bzw. die optionale Repo-Variable `NEXT_PUBLIC_SITE_URL`.
+          NEXT_PUBLIC_SITE_URL: ${{ vars.NEXT_PUBLIC_SITE_URL || 'https://example.com' }}
+        run: npm run build
+
+      - name: Audit (moderate)
+        run: npm audit --audit-level=moderate
+
+      - name: Guard — keine KI-/Autoren-Vermerke
+        run: |
+          MATCH=$(grep -rniE 'claude|chatgpt|copilot|gemini|codex|tandem|co-authored|ai-generated|generated with|ki-unterst|anthropic' \
+            --include='*.md' --include='*.ts' --include='*.tsx' --include='*.mjs' --include='*.css' \
+            --include='*.sql' --include='*.json' \
+            --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=.git \
+            --exclude='package-lock.json' . 2>/dev/null | grep -vE 'robots\.ts:' || true)
+          if [ -n "$MATCH" ]; then echo "$MATCH"; echo '>>> KI-/Autoren-Vermerk gefunden'; exit 1; fi
+          echo "Guard sauber."
+
+      - name: Guard — keine echten .env-Dateien getrackt
+        run: |
+          TRACKED=$(git ls-files | grep -E '(^|/)\.env($|\.)' | grep -vE '(^|/)\.env\.example$' || true)
+          if [ -n "$TRACKED" ]; then echo "$TRACKED"; echo '>>> Echte .env-Datei im Repo (nur .env.example erlaubt)'; exit 1; fi
+          echo "Keine getrackten .env-Dateien außer .env.example."
+
+      - name: Guard — keine Registry-Credentials im Lockfile
+        # F-028: gitleaks überspringt package-lock.json per (geerbter) Default-Pfad-Allowlist — dieser
+        # gezielte Grep deckt genau das ab, was im Lockfile gefährlich wäre: npm-Registry-Auth-Tokens
+        # und in resolved-URLs eingebettete Credentials (user:pass@host).
+        run: |
+          HITS=$(grep -nEi '(_authToken|_auth"|_password|\bnpm_[A-Za-z0-9]{30,}|//[^/@[:space:]"]+:[^/@[:space:]"]+@)' package-lock.json || true)
+          if [ -n "$HITS" ]; then echo "$HITS"; echo '>>> Mögliche Registry-Credentials/Token im Lockfile'; exit 1; fi
+          echo "Lockfile ohne Registry-Credentials."
+
+  secrets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15 # F-065
+    steps:
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0 # vollständige Historie für den Secret-Scan (nur hier nötig)
+
+      - name: Gitleaks (Secret-Scan)
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img" aria-label="Porträt einer Absolventin (Illustration)">
+  <defs><linearGradient id="b1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#bae6fd"/><stop offset="1" stop-color="#7dd3fc"/></linearGradient></defs>
+  <rect width="400" height="400" fill="url(#b1)"/>
+  <path d="M60 400c0-86 66-126 140-126s140 40 140 126z" fill="#0ea5e9"/>
+  <rect x="182" y="232" width="36" height="56" rx="14" fill="#f1c9a5"/>
+  <circle cx="200" cy="178" r="82" fill="#f4d0ab"/>
+  <path d="M118 176c0-66 40-104 82-104s82 38 82 104c-8-40-40-58-82-58s-74 18-82 58z" fill="#5b3b2e"/>
+  <path d="M120 176c-10 36 0 70 18 86-22-44-8-92-18-86z" fill="#5b3b2e"/>
+  <path d="M280 176c10 36 0 70-18 86 22-44 8-92 18-86z" fill="#5b3b2e"/>
+  <circle cx="174" cy="178" r="7" fill="#3b2a22"/>
+  <circle cx="226" cy="178" r="7" fill="#3b2a22"/>
+  <path d="M176 210q24 26 48 0" stroke="#b5654a" stroke-width="6" fill="none" stroke-linecap="round"/>
+  <circle cx="156" cy="198" r="9" fill="#f7b7a3" opacity=".6"/>
+  <circle cx="244" cy="198" r="9" fill="#f7b7a3" opacity=".6"/>
+</svg>

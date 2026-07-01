@@ -1,0 +1,34 @@
+#!/bin/sh
+# ============================================================================
+# Pre-Commit-Hook: Secret-Scan mit gitleaks
+# ----------------------------------------------------------------------------
+# Verhindert das versehentliche Committen von Secrets. gitleaks muss lokal
+# installiert sein (macOS: `brew install gitleaks`).
+#
+# F-088: FEHLENDES gitleaks blockiert den Commit (fail-closed) — kein stilles Durchwinken.
+# Bewusster Not-Ausstieg NUR über  SKIP_SECRET_SCAN=1 git commit …  (dokumentiert, sichtbar).
+# Der CI-`secrets`-Job bleibt der autoritative Gate; dieser Hook ist die frühe lokale Barriere.
+#
+# Aktivierung (einmalig, siehe README): git config core.hooksPath .githooks
+# ============================================================================
+
+if [ "${SKIP_SECRET_SCAN:-}" = "1" ]; then
+  echo "⚠ SKIP_SECRET_SCAN=1 gesetzt — lokaler Secret-Scan bewusst übersprungen (CI prüft trotzdem)."
+  exit 0
+fi
+
+if command -v gitleaks >/dev/null 2>&1; then
+  gitleaks protect --staged --redact --config .gitleaks.toml
+  status=$?
+  if [ "$status" -ne 0 ]; then
+    echo "✖ gitleaks hat mögliche Secrets gefunden — Commit abgebrochen."
+    exit "$status"
+  fi
+  echo "✓ gitleaks: keine Secrets in den gestageten Änderungen."
+  exit 0
+fi
+
+echo "✖ gitleaks nicht installiert — Secret-Scan kann nicht laufen, Commit abgebrochen (fail-closed)."
+echo "  Installation (macOS): brew install gitleaks"
+echo "  Bewusst überspringen (Ausnahme): SKIP_SECRET_SCAN=1 git commit …"
+exit 1

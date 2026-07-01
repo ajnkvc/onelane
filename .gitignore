@@ -1,0 +1,66 @@
+# ─────────────────────────────────────────────────────────────
+# .gitignore — Fahrschul-Plattform
+# WICHTIG: Secrets (.env*) dürfen NIEMALS committet werden.
+# Gepflegt wird ausschließlich .env.example (ohne echte Werte).
+# ─────────────────────────────────────────────────────────────
+
+# Secrets / Umgebungsvariablen
+.env
+.env.*
+!.env.example
+
+# Abhängigkeiten
+node_modules/
+.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# Next.js Build-Ausgaben
+.next/
+out/
+build/
+dist/
+
+# Produktions-/Deploy-Artefakte
+*.tsbuildinfo
+next-env.d.ts
+
+# Testabdeckung
+coverage/
+.nyc_output/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Caches / Tooling
+.cache/
+.turbo/
+.eslintcache
+.vercel/
+
+# Betriebssystem
+.DS_Store
+Thumbs.db
+
+# Editor / IDE / lokale Tooling-Konfiguration
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*.swo
+
+# Lokale Datenbank-Dumps / temporäre Importdateien
+*.dump
+/tmp/
+/scripts/_local/
+
+# OSM-Import-Snapshots (Rohdaten, ODbL; lokal/untracked — nicht ins Repo)
+/data/

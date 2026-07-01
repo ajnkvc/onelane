@@ -1,0 +1,122 @@
+/* ============================================================================
+ * tokens.css — ZENTRALE DESIGN-TOKENS (Corporate Identity)
+ * ----------------------------------------------------------------------------
+ * Dies ist die EINZIGE Stelle, an der Farben, Radien und Schrift-Stacks definiert
+ * werden. Ein CI-Wechsel (Farben/Look) passiert ausschließlich hier — projektweit
+ * in Minuten. Die Werte werden in globals.css über `@theme inline` auf Tailwind-
+ * Utilities gemappt (z. B. `bg-primary`, `text-muted-foreground`, `bg-brand-cyan`).
+ *
+ * MARKE „onelane" — CI in Arbeit (Logo/Schrift noch nicht final):
+ *   Wortmarke „onelane" (finale Grotesk-Schrift + Logo folgen). Palette:
+ *   Sky-Blau (Basis), Lime (Pop-CTA, immer dunkler Text), Cyan (Effekt/Hover) —
+ *   jung & dynamisch, zugleich vertrauensbildend. Helle Töne sind Flächen/Akzente,
+ *   NIE heller Text auf Weiß; Aktions-/Textton ist das dunklere Sky (#0369A1, AA).
+ *   Finale Markenfarben/Logo/Schrift folgen später. Siehe docs/DEVLOG.md.
+ *
+ * Exakte Hex-Werte (vom Gründer freigegebene Palette); Neutrale kühl abgestimmt.
+ * ========================================================================== */
+
+:root {
+  /* ---- Flächen & Text ---- */
+  --background: #ffffff;
+  --foreground: #0f2942; /* Ink */
+  --card: #ffffff;
+  --card-foreground: #0f2942;
+  --popover: #ffffff;
+  --popover-foreground: #0f2942;
+
+  /* ---- Marke (Sky-Blau, Aktionston AA auf Weiß) ---- */
+  --primary: #0369a1; /* Buttons/Links — Weiß darauf ~5.9:1 (AA) */
+  --primary-foreground: #ffffff;
+  --secondary: #f1f5f9;
+  --secondary-foreground: #0f2942;
+
+  /* ---- Akzent = Lime-Pop (Pop-CTA/Badges, IMMER dunkler Text) ---- */
+  --accent: #a3e635;
+  --accent-foreground: #1a2e05;
+
+  /* ---- Marken-/Effekt-Töne (Flächen/Akzente, nicht Fließtext) ---- */
+  --brand-sky: #0ea5e9; /* helleres Brand-Blau (Icons/Highlights/Marke) */
+  --brand-sky-soft: #7cb2fb;
+  --brand-cyan: #22d3ee; /* Effekt/Hover-Akzent */
+  --brand-lime: #a3e635;
+  --brand-ink: #0f2942;
+
+  /* ---- Hilfs-/Statusfarben ---- */
+  --muted: #f1f5f9;
+  --muted-foreground: #475569;
+  --destructive: #dc2626;
+  --success: #15803d;
+  --warning: #b45309;
+  --border: #e2e8f0;
+  --input: #e2e8f0;
+  --ring: #0ea5e9;
+
+  /* ---- Diagramm-/Datenfarben ---- */
+  --chart-1: #0ea5e9;
+  --chart-2: #22d3ee;
+  --chart-3: #a3e635;
+  --chart-4: #b45309;
+  --chart-5: #dc2626;
+
+  /* ---- Seitenleiste (für spätere Dashboards/SaaS) ---- */
+  --sidebar: #f8fafc;
+  --sidebar-foreground: #0f2942;
+  --sidebar-primary: #0369a1;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #a3e635;
+  --sidebar-accent-foreground: #1a2e05;
+  --sidebar-border: #e2e8f0;
+  --sidebar-ring: #0ea5e9;
+
+  /* ---- Form & Schrift ---- */
+  --radius: 0.75rem;
+  /* --font-sans wird in layout.tsx von next/font (Inter) gesetzt; hier nur Fallback */
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+}
+
+.dark {
+  --background: #0b1220;
+  --foreground: #e6edf5;
+  --card: #0f1b2d;
+  --card-foreground: #e6edf5;
+  --popover: #0f1b2d;
+  --popover-foreground: #e6edf5;
+
+  --primary: #7cb2fb; /* helles Blau auf Dunkel = hoher Kontrast */
+  --primary-foreground: #0b1220;
+  --secondary: #1e293b;
+  --secondary-foreground: #e6edf5;
+  --accent: #a3e635;
+  --accent-foreground: #1a2e05;
+
+  --brand-sky: #38bdf8;
+  --brand-sky-soft: #7cb2fb;
+  --brand-cyan: #22d3ee;
+  --brand-lime: #a3e635;
+  --brand-ink: #e6edf5;
+
+  --muted: #1e293b;
+  --muted-foreground: #94a3b8;
+  --destructive: #f87171;
+  --success: #4ade80;
+  --warning: #fbbf24;
+  --border: rgba(255, 255, 255, 0.1);
+  --input: rgba(255, 255, 255, 0.14);
+  --ring: #38bdf8;
+
+  --chart-1: #38bdf8;
+  --chart-2: #22d3ee;
+  --chart-3: #a3e635;
+  --chart-4: #fbbf24;
+  --chart-5: #f87171;
+
+  --sidebar: #0f1b2d;
+  --sidebar-foreground: #e6edf5;
+  --sidebar-primary: #7cb2fb;
+  --sidebar-primary-foreground: #0b1220;
+  --sidebar-accent: #a3e635;
+  --sidebar-accent-foreground: #1a2e05;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-ring: #38bdf8;
+}

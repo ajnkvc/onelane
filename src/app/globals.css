@@ -1,0 +1,505 @@
+/* ============================================================================
+ * globals.css — globale Stile + Mapping der Design-Tokens auf Tailwind v4
+ * ----------------------------------------------------------------------------
+ * Die KONKRETEN CI-Werte (Farben, Radius, Schrift) stehen NICHT hier, sondern
+ * zentral in ../styles/tokens.css. Hier werden sie nur über `@theme inline`
+ * auf Tailwind-Utilities gemappt. Bitte CI-Änderungen ausschließlich in
+ * tokens.css vornehmen.
+ * ========================================================================== */
+
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "../styles/tokens.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-brand-sky: var(--brand-sky);
+  --color-brand-sky-soft: var(--brand-sky-soft);
+  --color-brand-cyan: var(--brand-cyan);
+  --color-brand-lime: var(--brand-lime);
+  --color-brand-ink: var(--brand-ink);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  html {
+    @apply font-sans;
+    scroll-behavior: smooth;
+  }
+  /* Sichtbarer, konsistenter Tastatur-Fokus (A11y-Baseline). */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+/* ============================================================================
+ * A11y- & Motion-Basis (Phase D)
+ * ----------------------------------------------------------------------------
+ * Animationen sind PROGRESSIVE ENHANCEMENT: nur bei `no-preference` UND wenn der
+ * Browser scroll-driven Timelines unterstützt. Ohne Support/bei reduced-motion
+ * ist der Inhalt sofort statisch sichtbar (kein leerer Zustand). Es wird NUR
+ * `opacity`/`transform` animiert → kein Reflow/CLS, Compositor-only.
+ * ========================================================================== */
+
+/* Skip-Link: visuell versteckt, bei Fokus sichtbar. */
+.skip-link {
+  position: absolute;
+  left: 0.75rem;
+  top: -3rem;
+  z-index: 60;
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  padding: 0.5rem 0.875rem;
+  font-size: 0.875rem;
+  transition: top 0.15s ease;
+}
+.skip-link:focus {
+  top: 0.75rem;
+}
+
+/* Scroll-Reveal via IntersectionObserver (Komponente RevealOnScroll fügt
+   `reveal-on` an <html> und `.in` an sichtbare Elemente). Zuverlässig in ALLEN
+   Browsern. Ohne JS (keine `reveal-on`-Klasse) bleibt alles sichtbar (Fallback). */
+.reveal,
+.reveal-stagger > * {
+  transition:
+    opacity 0.6s ease,
+    transform 0.6s ease;
+}
+html.reveal-on .reveal:not(.in),
+html.reveal-on .reveal-stagger:not(.in) > * {
+  opacity: 0;
+  transform: translateY(28px);
+}
+.reveal-stagger.in > *:nth-child(2) {
+  transition-delay: 0.08s;
+}
+.reveal-stagger.in > *:nth-child(3) {
+  transition-delay: 0.16s;
+}
+.reveal-stagger.in > *:nth-child(4) {
+  transition-delay: 0.24s;
+}
+@media (prefers-reduced-motion: reduce) {
+  html.reveal-on .reveal,
+  html.reveal-on .reveal-stagger > * {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+
+/* Hover-Lift für Karten/Kacheln (Tastatur: via :focus-within). */
+.hover-lift {
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    border-color 0.18s ease;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hover-lift:hover,
+  .hover-lift:focus-within {
+    transform: translateY(-4px);
+  }
+}
+
+/* Slogan-Typewriter: JS-Insel setzt den Text; hier nur der blinkende Cursor. */
+.tw-caret {
+  display: inline-block;
+  width: 0.09em;
+  height: 1em;
+  translate: 0 0.12em;
+  margin-left: 0.06em;
+  border-radius: 2px;
+  /* Eigene Brand-Farbe — NICHT currentColor: auf Gradient-Text (color:transparent) wäre der Caret sonst unsichtbar. */
+  background: var(--brand-sky);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tw-caret {
+    animation: caret-blink 1.05s steps(1, end) infinite;
+  }
+}
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Gradient-Text (Slogan-Akzent, Sky→Cyan). */
+.text-gradient-brand {
+  background-image: linear-gradient(90deg, var(--brand-sky), var(--brand-cyan));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Sanftes Schweben dekorativer Elemente/Bilder. */
+@media (prefers-reduced-motion: no-preference) {
+  .float-slow {
+    animation: float-y 7s ease-in-out infinite;
+  }
+  .float-slower {
+    animation: float-y 11s ease-in-out infinite;
+  }
+}
+@keyframes float-y {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-16px);
+  }
+}
+
+/* Ken-Burns-Zoom für „Video"-Porträts (glückliche Absolvent:innen). */
+@media (prefers-reduced-motion: no-preference) {
+  .kenburns {
+    animation: kenburns 14s ease-in-out infinite alternate;
+  }
+}
+@keyframes kenburns {
+  from {
+    transform: scale(1);
+  }
+  to {
+    transform: scale(1.09) translateY(-2%);
+  }
+}
+
+/* Bewegter Hero-Hintergrund: fahrendes Auto + laufende Straßenmarkierung. */
+@media (prefers-reduced-motion: no-preference) {
+  .drive {
+    animation: drive 11s linear infinite;
+  }
+  .road-dash {
+    animation: road-move 1.1s linear infinite;
+  }
+}
+@keyframes drive {
+  0% {
+    transform: translateX(-14%);
+  }
+  100% {
+    transform: translateX(114%);
+  }
+}
+@keyframes road-move {
+  to {
+    background-position-x: -56px;
+  }
+}
+
+/* Sanfter „live"-Puls-Ring (Video-/Play-Indikator). */
+@media (prefers-reduced-motion: no-preference) {
+  .pulse-ring {
+    animation: pulse-ring 2.4s ease-out infinite;
+  }
+}
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 211, 238, 0.5);
+  }
+  100% {
+    box-shadow: 0 0 0 14px rgba(34, 211, 238, 0);
+  }
+}
+
+/* Bewegter Aurora-Gradient (Hero-Hintergrund, dezent driftend). */
+@media (prefers-reduced-motion: no-preference) {
+  .aurora {
+    animation: aurora 14s ease-in-out infinite alternate;
+  }
+}
+@keyframes aurora {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Driftende Hintergrund-Blobs („Lava-Lamp", dezent & langsam). */
+@media (prefers-reduced-motion: no-preference) {
+  .mbg-1 {
+    animation: mbg-drift1 24s ease-in-out infinite;
+  }
+  .mbg-2 {
+    animation: mbg-drift2 30s ease-in-out infinite;
+  }
+  .mbg-3 {
+    animation: mbg-drift3 21s ease-in-out infinite;
+  }
+}
+@keyframes mbg-drift1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(64px, 42px) scale(1.12); }
+}
+@keyframes mbg-drift2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-72px, 30px) scale(1.08); }
+}
+@keyframes mbg-drift3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(46px, -32px) scale(1.1); }
+  66% { transform: translate(-34px, 24px) scale(0.94); }
+}
+
+/* Fließende Punkte entlang des „Weges" (3-Schritte-Pfad). */
+@media (prefers-reduced-motion: no-preference) {
+  .path-flow {
+    animation: path-flow 1.4s linear infinite;
+  }
+}
+@keyframes path-flow {
+  to {
+    stroke-dashoffset: -48;
+  }
+}
+
+/* Lade-Overlay: Schritte gleiten nacheinander ein. */
+@media (prefers-reduced-motion: no-preference) {
+  .load-step {
+    animation: load-in 0.5s ease-out both;
+  }
+}
+@keyframes load-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Verbindungslinie „Dein Weg" — kräftige Punkte, die zum Ziel fließen. */
+.road-line {
+  background-image: radial-gradient(circle, var(--brand-sky) 0 3px, transparent 3.5px);
+  background-size: 18px 100%;
+  background-repeat: repeat-x;
+  background-position: 0 center;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .road-line {
+    animation: road-line 1.2s linear infinite;
+  }
+}
+@keyframes road-line {
+  to {
+    background-position-x: 18px;
+  }
+}
+
+/* Sound-Wellen, die bei Hover über einem „Clip" aufploppen. */
+.wave-bar {
+  transform-origin: bottom;
+  transform: scaleY(0.35);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .group:hover .wave-bar {
+    animation: wave 0.9s ease-in-out infinite;
+  }
+}
+@keyframes wave {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+/* Endlos-Marquee für Partner-/Quellen-Logos (nach links, nahtlose Schleife).
+   Track enthält die Liste DOPPELT; -50% verschiebt genau ein Set → nahtlos. */
+.marquee-track {
+  display: flex;
+  width: max-content;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .marquee-track {
+    animation: marquee 36s linear infinite;
+  }
+  .marquee-track:hover {
+    animation-play-state: paused;
+  }
+}
+@keyframes marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+/* Sanftes Ausblenden an beiden Rändern (rechts auftauchen, links verschwinden). */
+.marquee-mask {
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+}
+
+/* Leaflet in eigener CI: dezente, monochrome Kacheln (Marker bleiben farbig). */
+.map-ci .leaflet-tile {
+  filter: saturate(0.72) brightness(1.04) contrast(0.94);
+}
+.dark .map-ci .leaflet-tile {
+  filter: invert(0.92) hue-rotate(180deg) saturate(0.7) brightness(0.95) contrast(0.95);
+}
+.map-ci .leaflet-control-attribution {
+  background: color-mix(in oklab, var(--card) 80%, transparent);
+  color: var(--muted-foreground);
+}
+.map-ci .leaflet-bar a {
+  background: var(--card);
+  color: var(--foreground);
+  border-color: var(--border);
+}
+
+/* ===========================================================================
+ * VORSCHAU-Hilfsklassen (Prefix `vp-`) — NUR für die /vorschau-Design-Tests.
+ * Additiv, ändert nichts am Bestehenden. CSS-only, reduced-motion-sicher.
+ * ======================================================================== */
+/* Premium: ruhiger, langsam wandernder Verlauf hinter dem Hero. */
+.vp-aurora {
+  background:
+    radial-gradient(60% 60% at 20% 10%, rgba(14, 165, 233, 0.22), transparent 70%),
+    radial-gradient(50% 50% at 90% 20%, rgba(99, 102, 241, 0.18), transparent 70%),
+    radial-gradient(60% 60% at 70% 90%, rgba(34, 211, 238, 0.16), transparent 70%);
+  background-size: 180% 180%;
+  animation: vp-pan 24s ease-in-out infinite alternate;
+}
+@keyframes vp-pan {
+  from { background-position: 0% 0%; }
+  to { background-position: 100% 100%; }
+}
+/* Feines „Premium"-Raster (statt Bild-Asset → CSP-konform). */
+.vp-grid {
+  background-image:
+    linear-gradient(rgba(27, 58, 92, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(27, 58, 92, 0.06) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+/* Sanftes Schweben (Premium-Karten). */
+.vp-float { animation: vp-float 9s ease-in-out infinite; }
+@keyframes vp-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+/* Frech: kräftige, schnell wandernde Knallfarben. */
+.vp-blob {
+  background:
+    radial-gradient(45% 45% at 15% 20%, #a3e635 0, transparent 60%),
+    radial-gradient(40% 40% at 85% 15%, #f472b6 0, transparent 60%),
+    radial-gradient(50% 50% at 60% 90%, #38bdf8 0, transparent 60%);
+  background-size: 160% 160%;
+  animation: vp-pan 14s ease-in-out infinite alternate;
+}
+/* Frech: leichtes Wackeln/Pop bei Hover-fähigen Elementen. */
+.vp-wobble { animation: vp-wobble 6s ease-in-out infinite; }
+@keyframes vp-wobble {
+  0%, 100% { transform: rotate(-2.5deg); }
+  50% { transform: rotate(2.5deg); }
+}
+/* Warmes Mesh (2026-Trend: überlagerte Radial-Blobs, warme Basis). */
+.vp-mesh {
+  background:
+    radial-gradient(40% 50% at 12% 18%, rgba(255, 138, 76, 0.55), transparent 60%),
+    radial-gradient(42% 48% at 88% 12%, rgba(255, 92, 138, 0.50), transparent 62%),
+    radial-gradient(50% 55% at 70% 95%, rgba(124, 92, 255, 0.42), transparent 62%),
+    radial-gradient(45% 45% at 30% 90%, rgba(45, 212, 191, 0.38), transparent 60%),
+    linear-gradient(180deg, #fff4ec, #fdeef3);
+  background-size: 160% 160%;
+  animation: vp-pan 22s ease-in-out infinite alternate;
+}
+/* Premium: animierte Routen-Linie (gestrichelt, „fährt"). */
+.vp-dash { stroke-dasharray: 10 14; animation: vp-dash 2.4s linear infinite; }
+@keyframes vp-dash { to { stroke-dashoffset: -48; } }
+/* --- Animierte „Fahrstunde"-Szene (Auto, Räder, Straße, Kulisse) --- */
+.vp-spin { transform-box: fill-box; transform-origin: center; animation: vp-spin 1.05s linear infinite; }
+@keyframes vp-spin { to { transform: rotate(360deg); } }
+.vp-bob { animation: vp-bob 1.7s ease-in-out infinite; }
+@keyframes vp-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.vp-scenery { animation: vp-scenery 7s linear infinite; }
+@keyframes vp-scenery { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.vp-scenery-fast { animation: vp-scenery 3.5s linear infinite; }
+/* Pointer-Parallax: Layer folgen sanft der Maus (Werte setzt die Client-Insel). */
+.vp-parallax { transition: transform 0.25s ease-out; transform: translate3d(calc(var(--px, 0) * 1px), calc(var(--py, 0) * 1px), 0); }
+/* Live-Widget: sanftes Auf-/Abschweben mit Versatz. */
+.vp-drift { animation: vp-bob 4.5s ease-in-out infinite; }
+.vp-drift-2 { animation: vp-bob 5.5s ease-in-out infinite 0.6s; }
+/* Arcade-Scanlines (dezent, dekorativ). */
+.vp-scan { background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.06) 0 1px, transparent 1px 3px); }
+
+/* Kinetische Verlaufs-Schrift (Background-Position wandert). */
+.vp-text-pan { animation: vp-textpan 6s linear infinite; }
+@keyframes vp-textpan { to { background-position: 200% center; } }
+/* Sanftes Erscheinen beim Laden (für Vorschau-Heros). */
+.vp-rise { animation: vp-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.vp-rise-2 { animation: vp-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both; }
+.vp-rise-3 { animation: vp-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.24s both; }
+@keyframes vp-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+/* Reduced-motion: alle Bewegungen praktisch abschalten (harte Leitplanke). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
