@@ -14,6 +14,7 @@ export * from "./content";
 export * from "./monetization";
 export * from "./saas";
 export * from "./enrollments";
+export * from "./portal";
 export * from "./communication";
 export * from "./learning";
 export * from "./accounting";

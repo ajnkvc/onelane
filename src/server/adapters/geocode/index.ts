@@ -1,6 +1,8 @@
 import "server-only";
 import type { GeocodePort, GeocodeSuggestion } from "./port";
 import { DEV_PLACES, normalize } from "./dev-data";
+import { PhotonAdapter } from "./photon";
+import { getServerEnv } from "@/server/config/env";
 
 /**
  * Dev-Adapter: kuratierte Orte, kein externer Call. Aktiv in Phase F / lokal.
@@ -43,10 +45,22 @@ export class GooglePlacesAdapter implements GeocodePort {
 let instance: GeocodePort | null = null;
 
 /**
- * Liefert den aktiven Geocode-Adapter. Phase F: IMMER Dev-Adapter (kein externer
- * Call). Der Google-Adapter wird in Phase M consent-gegated ausgewählt.
+ * Liefert den aktiven Geocode-Adapter. Auswahl server-only über GEOCODE_PROVIDER
+ * (config/env.ts): 'photon' = server-proxied Photon-API (DSGVO-Docblock in
+ * ./photon.ts), Default 'dev' = kuratierte lokale Orte OHNE Netzabhängigkeit
+ * (Tests/CI bleiben netzfrei). Fail-soft: Ist die Server-Env (noch) nicht
+ * valide, bleibt der Dev-Adapter aktiv. Der Google-Adapter wird erst in
+ * Phase M consent-gegated auswählbar.
  */
 export function getGeocodeAdapter(): GeocodePort {
-  if (!instance) instance = new DevGeocodeAdapter();
+  if (!instance) {
+    let provider: "dev" | "photon" = "dev";
+    try {
+      provider = getServerEnv().GEOCODE_PROVIDER;
+    } catch {
+      provider = "dev";
+    }
+    instance = provider === "photon" ? new PhotonAdapter() : new DevGeocodeAdapter();
+  }
   return instance;
 }

@@ -69,11 +69,20 @@ export default function ResultsMap({ markers, center, tile }: Props) {
   }, [markers, center, tile]);
 
   return (
-    <div
-      ref={ref}
-      className="map-ci h-80 w-full overflow-hidden rounded-2xl border border-border shadow-sm"
-      role="img"
-      aria-label="Karte der Suchergebnisse"
-    />
+    /* Inset-Rahmung nach Radius-Skala + Kanten-Verlauf: die Karte „taucht" in die
+       Fläche ein. Die Gradient-Overlays liegen ÜBER den Tiles (Leaflet-Panes
+       z-Index ≤ 700), aber UNTER den Controls/der Attribution (z-Index ≥ 800) —
+       die Attribution bleibt immer sichtbar (Pflicht, nie verstecken). */
+    <div className="map-ci relative overflow-hidden rounded-md border border-border">
+      <div ref={ref} className="h-80 w-full" role="img" aria-label="Karte der Suchergebnisse" />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 top-0 z-[750] h-6 bg-gradient-to-b from-background to-transparent"
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-x-0 bottom-0 z-[750] h-6 bg-gradient-to-t from-background to-transparent"
+      />
+    </div>
   );
 }

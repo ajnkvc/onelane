@@ -27,9 +27,19 @@ class DevLogAdapter implements EmailPort {
       );
     }
     // Nur maskierte Metadaten loggen (Datensparsamkeit; E-Mail ist PII).
+    // Anhänge: AUSSCHLIESSLICH Metadaten (Name/Typ/Größe) — NIE Inhalte
+    // (Durchleitungs-Prinzip: Bewerbungsunterlagen werden nicht persistiert).
     console.info("[E-Mail:DevLog] (nicht versendet)", {
       to: maskEmail(message.to),
       subject: message.subject,
+      // Dateinamen maskieren: Bewerber benennen CVs oft nach sich selbst
+      // („Max-Mustermann-Lebenslauf.pdf") — Namensbestandteile sind PII und
+      // gehören nicht in Dev-/Staging-Logs (Sicherheits-Abnahme 2026-07-02).
+      attachments: (message.attachments ?? []).map((a) => ({
+        filename: a.filename.replace(/^(.{2}).*?(\.[A-Za-z0-9]+)?$/, "$1***$2"),
+        contentType: a.contentType,
+        bytes: a.content.byteLength,
+      })),
     });
   }
 }

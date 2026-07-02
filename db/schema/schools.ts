@@ -1,6 +1,6 @@
 import {
   pgTable, pgView, uuid, text, timestamp, boolean, integer, bigint, numeric, doublePrecision,
-  jsonb, smallint, time,
+  jsonb, smallint, time, date, uniqueIndex,
 } from "drizzle-orm/pg-core";
 import {
   landEnum, schoolMemberRolleEnum,
@@ -107,6 +107,9 @@ export const schoolProfiles = pgTable("school_profiles", {
   telefon: text("telefon"),
   whatsapp: text("whatsapp"), // optionale WhatsApp-Kontaktnummer (Migration 0011)
   email: text("email"),
+  // Bewerbungs-Eingang je Schule (Migration 0025) — INTERN wie `email`: wird nie
+  // öffentlich gerendert; App-Fallback für Bewerbungs-Mails: bewerbungs_email ?? email.
+  bewerbungsEmail: text("bewerbungs_email"),
   website: text("website"),
   // Sektions-Sichtbarkeit (im Backend pro Schule deaktivierbar; Default sichtbar)
   showImages: boolean("show_images").notNull().default(true),
@@ -198,7 +201,66 @@ export const schoolJobs = pgTable("school_jobs", {
   titel: text("titel").notNull(),
   beschreibung: text("beschreibung"),
   art: jobArtEnum("art").notNull().default("fahrlehrer"),
+  // Jobbörse-Ausbau (Migration 0023): globale Detail-URL /jobs/{slug} + Anzeige-Metadaten.
+  slug: text("slug").notNull(),
+  beschaeftigungsart: text("beschaeftigungsart").$type<
+    "vollzeit" | "teilzeit" | "minijob" | "nebenberuflich"
+  >(),
+  // Freiwillige Vergütungsangabe der Schule als Freitext — bewusst KEINE Zahlen-Spanne
+  // (keine erfundenen/normierten Werte; AGG-/UWG-schonend).
+  verguetungText: text("verguetung_text"),
+  gueltigBis: date("gueltig_bis"),
+  position: integer("position").notNull().default(0),
+  // Strukturierte Phase-1-Felder (Migration 0025). Gehalts-Integrität ist DB-HART:
+  // ENTWEDER alle vier Gehaltsfelder NULL ODER komplett + plausibel + bestätigt
+  // (chk_school_jobs_gehalt) — unbestätigte Gehälter existieren nie in der Tabelle.
+  gehaltVonEuro: numeric("gehalt_von_euro", { precision: 10, scale: 2 }),
+  gehaltBisEuro: numeric("gehalt_bis_euro", { precision: 10, scale: 2 }),
+  gehaltZeitraum: text("gehalt_zeitraum").$type<"monat" | "jahr" | "stunde">(),
+  gehaltBestaetigtAm: date("gehalt_bestaetigt_am"),
+  verguetungsmodell: text("verguetungsmodell").$type<
+    "fix" | "fix_plus_umsatz" | "nach_vereinbarung"
+  >(),
+  tarifHinweis: text("tarif_hinweis"),
+  klassen: text("klassen").array().notNull().default([]),
+  quereinsteigerWillkommen: boolean("quereinsteiger_willkommen").notNull().default(false),
+  quereinsteigerFinanzierung: text("quereinsteiger_finanzierung")
+    .$type<"keine" | "anteilig" | "voll" | "nach_vereinbarung">()
+    .notNull()
+    .default("keine"),
+  arbeitszeitModell: text("arbeitszeit_modell").$type<"vollzeit" | "teilzeit" | "flexibel">(),
+  samstagDienst: boolean("samstag_dienst"),
+  geprueftAm: date("geprueft_am"),
+  erstveroeffentlichtAm: date("erstveroeffentlicht_am"),
   aktiv: boolean("aktiv").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-});
+}, (t) => [uniqueIndex("uq_school_jobs_slug").on(t.slug)]);
+
+/**
+ * Strukturierte Preisangaben je Führerscheinklasse (Migration 0021) — Quelle der
+ * Wahrheit für Preisdarstellung/-filter. Struktur folgt dem amtlichen Preisaushang
+ * (§ 32 FahrlG, Anlage 4): Sonderfahrten GETRENNT nach Fahrtart; bewusst KEINE
+ * Gesamt-/Pauschalpreis-Modellierung. `quelle` ist öffentlich spalten-gesperrt.
+ * status: 'recherchiert' (ohne Gewähr) → 'bestaetigt' (durch die Fahrschule).
+ */
+export const schoolPrices = pgTable("school_prices", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  schoolId: uuid("school_id").notNull().references(() => drivingSchools.id, { onDelete: "cascade" }),
+  klasse: text("klasse").notNull(),
+  grundbetrag: numeric("grundbetrag", { precision: 10, scale: 2 }),
+  fahrstunde45: numeric("fahrstunde_45", { precision: 10, scale: 2 }),
+  sonderfahrtUeberland45: numeric("sonderfahrt_ueberland_45", { precision: 10, scale: 2 }),
+  sonderfahrtAutobahn45: numeric("sonderfahrt_autobahn_45", { precision: 10, scale: 2 }),
+  sonderfahrtDaemmerung45: numeric("sonderfahrt_daemmerung_45", { precision: 10, scale: 2 }),
+  vorstellungTheorie: numeric("vorstellung_theorie", { precision: 10, scale: 2 }),
+  vorstellungPraxis: numeric("vorstellung_praxis", { precision: 10, scale: 2 }),
+  lehrmaterial: numeric("lehrmaterial", { precision: 10, scale: 2 }),
+  waehrung: text("waehrung").notNull().default("EUR"),
+  status: text("status").$type<"recherchiert" | "bestaetigt">().notNull().default("recherchiert"),
+  stand: date("stand"),
+  quelle: text("quelle"),
+  aktiv: boolean("aktiv").notNull().default(true),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (t) => [uniqueIndex("uq_school_prices_school_klasse").on(t.schoolId, t.klasse)]);

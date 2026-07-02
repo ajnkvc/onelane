@@ -184,6 +184,19 @@ export function getContentSlug(): string {
 }
 
 /**
+ * Zieladresse für VERMITTLUNGS-Interessenten (Quereinstieg/Ausbildungsplatz).
+ * Gründer-Direktive 2026-07-02: Diese Anfragen gehen IMMER an onelane und NIE
+ * blind an die Fahrschule — wir übernehmen den vollständigen Vermittlungs-
+ * prozess über das Portal (Kommissions-USP und Ertragsquelle). Server-only-Env
+ * (kein NEXT_PUBLIC): zur Laufzeit gelesen, Fallback ist unser Funktions-
+ * postfach.
+ */
+export function getVermittlungEmail(): string {
+  const wert = process.env.VERMITTLUNG_EMAIL?.trim();
+  return wert && wert.length > 0 ? wert : "kontakt@onelane.de";
+}
+
+/**
  * Konfigurierter Karten-Tile-Anbieter (öffentlich, nicht-geheim). `null`, wenn
  * nicht gesetzt → der Maps-Adapter nutzt dann einen DEV-Fallback (und verweigert
  * in Produktion, weil OSMF-Public-Tiles kein Produktionsdienst sind).

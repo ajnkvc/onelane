@@ -31,7 +31,7 @@ beforeAll(async () => {
   await db.query(`insert into public.school_vehicles (school_id,marke,aktiv) values ($1,'VW',true),($1,'Audi',false),($2,'BMW',true)`, [listed, unlisted]);
   await db.query(`insert into public.school_faq_items (school_id,frage,antwort,aktiv) values ($1,'F1','A1',true),($1,'F2','A2',false),($2,'F3','A3',true)`, [listed, unlisted]);
   await db.query(`insert into public.school_opening_hours (school_id,art,wochentag,von,bis,aktiv) values ($1,'buero',0,'09:00','17:00',true),($1,'buero',1,'09:00','17:00',false),($2,'buero',0,'09:00','17:00',true)`, [listed, unlisted]);
-  await db.query(`insert into public.school_jobs (school_id,titel,aktiv) values ($1,'Fahrlehrer (m/w/d)',true),($1,'Entwurf',false),($2,'Job U',true)`, [listed, unlisted]);
+  await db.query(`insert into public.school_jobs (school_id,titel,slug,aktiv) values ($1,'Fahrlehrer (m/w/d)','job-l-aktiv',true),($1,'Entwurf','job-l-entwurf',false),($2,'Job U','job-u',true)`, [listed, unlisted]);
 });
 
 const TABLES = [

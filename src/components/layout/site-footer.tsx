@@ -19,6 +19,34 @@ export function SiteFooter() {
   const year = new Date().getFullYear();
   return (
     <footer className="mt-16 border-t border-border/60">
+      {/* Vertrauens-Leiste GANZ OBEN im Footer (Gründer 2026-07-02: „soll auffallen")
+          — nur wahre, technisch gedeckte Zusicherungen; keine Siegel-Optik. */}
+      <div className="border-b border-border/60 bg-secondary/50">
+        <ul className="mx-auto flex w-full max-w-6xl flex-wrap items-center justify-center gap-x-10 gap-y-2 px-6 py-5 text-sm font-semibold text-foreground">
+          <li className="flex items-center gap-2.5">
+            <svg className="size-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="4" y="10" width="16" height="10" rx="2" />
+              <path d="M8 10V7a4 4 0 0 1 8 0v3" />
+            </svg>
+            SSL/TLS-verschlüsselte Übertragung
+          </li>
+          <li className="flex items-center gap-2.5">
+            <svg className="size-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="6" rx="1.5" />
+              <rect x="3" y="13" width="18" height="6" rx="1.5" />
+              <path d="M7 8h.01M7 16h.01" />
+            </svg>
+            Server in Deutschland
+          </li>
+          <li className="flex items-center gap-2.5">
+            <svg className="size-5 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M8.5 12.5l2.3 2.3L15.5 10" />
+            </svg>
+            Datenverarbeitung nach DSGVO
+          </li>
+        </ul>
+      </div>
       <div className="mx-auto w-full max-w-6xl px-6 pt-10">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Fahrschulen in Deutschlands größten Städten
@@ -49,6 +77,9 @@ export function SiteFooter() {
         >
           <Link href="/fahrschulen" className="underline-offset-2 hover:text-foreground hover:underline">
             Fahrschulen
+          </Link>
+          <Link href="/ratgeber" className="underline-offset-2 hover:text-foreground hover:underline">
+            Ratgeber
           </Link>
           <Link href="/impressum" className="underline-offset-2 hover:text-foreground hover:underline">
             Impressum
