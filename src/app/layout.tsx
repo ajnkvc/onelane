@@ -31,7 +31,8 @@ const inter = localFont({
  * 01.07.: stärkste XSS-Abwehr; Performance via Cloudflare-Edge-Cache). Route-Segment-
  * Config im Root-Layout gilt für alle UI-Routen unter diesem Layout.
  * HINWEIS: Spezial-Routen ohne dieses Layout (robots.ts, sitemap.ts, llms.txt) sind davon
- * NICHT betroffen und bleiben statisch — bewusst (sie tragen keine Nonce-Skripte).
+ * NICHT betroffen (sie tragen keine Nonce-Skripte). robots.ts und llms.txt bleiben statisch;
+ * sitemap.ts setzt ein EIGENES force-dynamic (F-102: Live-Datenbestand je Request, siehe dort).
  */
 export const dynamic = "force-dynamic";
 
