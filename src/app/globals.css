@@ -52,6 +52,8 @@
   --color-brand-ink: var(--brand-ink);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-rating: var(--rating);
+  --color-rating-fill: var(--rating-fill);
   --color-popover-foreground: var(--popover-foreground);
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
@@ -63,6 +65,10 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+  /* Elevation-Tokens (tokens.css) als Utilities: shadow-elevation-1/-2/-3. */
+  --shadow-elevation-1: var(--elevation-1);
+  --shadow-elevation-2: var(--elevation-2);
+  --shadow-elevation-3: var(--elevation-3);
 }
 
 @layer base {
@@ -385,10 +391,97 @@ html.reveal-on .reveal-stagger:not(.in) > * {
     transform: translateX(-50%);
   }
 }
-/* Sanftes Ausblenden an beiden Rändern (rechts auftauchen, links verschwinden). */
+/* Sanftes Ausblenden an beiden Rändern (rechts auftauchen, links verschwinden) —
+   bewusst kräftig (12 %), damit Logos weich ein-/ausgleiten statt hart zu schneiden. */
 .marquee-mask {
-  -webkit-mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
-  mask-image: linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+/* Wechselwort (Dark-Statement-Band): FORTLAUFENDE vertikale Rolle nach
+   Motel-One-Vorbild (2. Fassung, Gründer 2026-07-02). Das Fenster (2 em) zeigt
+   das aktive Wort mittig, die Nachbarn oben/unten ANGESCHNITTEN (Masken-Fade
+   zu den Kanten); negative Margins geben die Mehrhöhe an den Zeilenkasten
+   zurück (kein Layout-Shift). Der Strip trägt vorn eine Kopie des LETZTEN und
+   hinten eine Kopie des ERSTEN Worts: 0 %- und 100 %-Frame sind pixelidentisch
+   → nahtloser Endlos-Loop, immer aufwärts, nie rückwärts. Zeilenraster 1,15 em;
+   Mittig-Offset = (2 − 1,15) / 2 = 0,425 em → Schritte: −0,725 / −1,875 /
+   −3,025 / −4,175 em. Basis (SSR/No-JS/reduced-motion): erstes Wort statisch. */
+.wechsel-fenster {
+  height: 2em;
+  margin-top: -0.425em;
+  margin-bottom: -0.425em;
+  vertical-align: top;
+  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent);
+  mask-image: linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent);
+}
+.wechsel-zeile {
+  height: 1.15em;
+  line-height: 1.15;
+}
+.wechsel-strip {
+  transform: translateY(-0.725em); /* Wort 1 mittig (Basis-Zustand) */
+}
+@media (prefers-reduced-motion: no-preference) {
+  .wechsel-strip {
+    animation: wechsel-rolle 9s infinite;
+    animation-timing-function: var(--motion-ease);
+  }
+}
+@keyframes wechsel-rolle {
+  0%,
+  26.6% {
+    transform: translateY(-0.725em);
+  }
+  33.3%,
+  59.9% {
+    transform: translateY(-1.875em);
+  }
+  66.6%,
+  93.3% {
+    transform: translateY(-3.025em);
+  }
+  100% {
+    transform: translateY(-4.175em);
+  }
+}
+
+/* Hero-Slides: Crossfade-Rotation (3 Slides × ~6 s = 18 s Loop, NUR opacity).
+   Basis-Zustand (SSR/No-JS/reduced-motion): erstes Slide sichtbar, Rest nicht.
+   Die negativen Delays versetzen die Slides im gemeinsamen 18-s-Zyklus; der
+   Übergang (Fade-out des einen = Fade-in des nächsten) überlappt weich. */
+.hero-slide {
+  opacity: 0;
+}
+.hero-slide:first-child {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .hero-slide {
+    animation: hero-slide-fade 18s linear infinite;
+  }
+  .hero-slide:nth-child(1) {
+    animation-delay: 0s;
+  }
+  .hero-slide:nth-child(2) {
+    animation-delay: -12s;
+  }
+  .hero-slide:nth-child(3) {
+    animation-delay: -6s;
+  }
+}
+@keyframes hero-slide-fade {
+  0%,
+  28% {
+    opacity: 1;
+  }
+  33.33%,
+  94.67% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
 }
 
 /* Leaflet in eigener CI: dezente, monochrome Kacheln (Marker bleiben farbig). */
@@ -406,6 +499,53 @@ html.reveal-on .reveal-stagger:not(.in) > * {
   background: var(--card);
   color: var(--foreground);
   border-color: var(--border);
+}
+/* Attribution dezent (SICHTBAR lassen, nie verstecken): kleiner + muted — additiv. */
+@layer components {
+  .map-ci .leaflet-control-attribution {
+    font-size: 10px;
+    line-height: 1.4;
+    padding-inline: 6px;
+  }
+  .map-ci .leaflet-control-attribution a {
+    color: var(--muted-foreground);
+  }
+}
+
+/* Search-Dock: Mini-Pill blendet sich motion-safe ein (nur opacity/transform). */
+@media (prefers-reduced-motion: no-preference) {
+  .dock-in {
+    animation: dock-in 0.25s var(--motion-ease) both;
+  }
+}
+@keyframes dock-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Compare-Bar (/fahrschulen): Leiste blendet sich motion-safe von unten ein
+   (nur opacity/transform, kein Layout-Shift — die Leiste ist fixed). Bei
+   reduced-motion steht sie statisch (Klasse ohne Animation). */
+@media (prefers-reduced-motion: no-preference) {
+  .leiste-in {
+    animation: leiste-in 0.25s var(--motion-ease) both;
+  }
+}
+@keyframes leiste-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 /* ===========================================================================
@@ -501,5 +641,22 @@ html.reveal-on .reveal-stagger:not(.in) > * {
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
+  }
+}
+
+/* ---- Interaktions-Cursor (2026-07-02) ----------------------------------
+ * Tailwinds Preflight belässt <button> beim Pfeil-Cursor; interaktive
+ * Elemente sollen aber wie bei Airbnb & Co. den Zeigefinger zeigen —
+ * wirkt professioneller und signalisiert Klickbarkeit. Links (<a>) haben
+ * ihn nativ; hier ergänzen wir Buttons, Summary-Aufklapper und
+ * role="button" (disabled ausgenommen). */
+@layer base {
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary,
+  select:not(:disabled),
+  label:has(> input[type="checkbox"]:not(:disabled)),
+  label:has(> input[type="radio"]:not(:disabled)) {
+    cursor: pointer;
   }
 }

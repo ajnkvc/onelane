@@ -39,11 +39,11 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: {
-    default: "Fahrschulen vergleichen",
-    template: "%s · Fahrschul-Plattform",
+    default: "onelane — Deutschlands Fahrschulvergleich",
+    template: "%s · onelane",
   },
   description:
-    "Fahrschulen in deiner Nähe vergleichen, bewerten und buchen.",
+    "Fahrschulen in deiner Nähe finden und ehrlich vergleichen — kostenlos und ohne Konto.",
 };
 
 /**

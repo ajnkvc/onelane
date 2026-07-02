@@ -21,6 +21,8 @@
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:setup": "node --env-file=.env.development.local scripts/db-local.mjs",
+    "db:seed:demo": "node --env-file=.env.development.local scripts/seed-demo.mjs",
+    "db:seed:demo:remove": "node --env-file=.env.development.local scripts/seed-demo.mjs --remove",
     "db:smoke": "node --env-file=.env.development.local scripts/db-smoke.mjs",
     "db:import:osm": "node --env-file=.env.development.local scripts/import-osm.mjs",
     "db:verify:sites": "node --env-file=.env.development.local scripts/verify-sites.mjs",

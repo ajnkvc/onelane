@@ -76,6 +76,15 @@ const serverEnvSchema = z.object({
       ctx.addIssue({ code: z.ZodIssueCode.custom, message: e instanceof Error ? e.message : "ungültige DATABASE_URL" });
     }
   }),
+
+  /**
+   * Geocoding-Anbieter für Adress-Autocomplete (OPTIONAL, kein Secret im engen
+   * Sinn — aber server-only, damit die Anbieterwahl nie clientseitig steuerbar
+   * ist). 'dev' = kuratierte lokale Orte (Default, keine Netzabhängigkeit in
+   * Tests/CI); 'photon' = server-proxied Photon-API (DSGVO-Begründung in
+   * adapters/geocode/photon.ts: Server-Proxy, transient, Koordinaten gerundet).
+   */
+  GEOCODE_PROVIDER: z.enum(["dev", "photon"]).default("dev"),
 });
 
 export type ServerEnv = z.infer<typeof serverEnvSchema>;

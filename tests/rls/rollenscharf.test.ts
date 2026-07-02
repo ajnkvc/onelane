@@ -125,11 +125,13 @@ describe("0013 — Verwaltung (inhaber/verwaltung): volle Schul-Sicht + Schreibe
     expect(got).toEqual(expect.arrayContaining([s.apptA, s.apptUnassigned, s.apptGhost]));
   });
 
-  it("verwaltung darf school_jobs (Untertabelle) schreiben (1 Zeile)", async () => {
+  it("verwaltung darf school_jobs NICHT mehr schreiben (0025: Phase 1 kuratiert, 0 Zeilen)", async () => {
+    // Seit Migration 0025 sind Stellenanzeigen kuratiert: Writes nur admin/editor.
+    // Positivfälle (editor/admin) deckt tests/rls/jobs-kuratierung.test.ts ab.
     const r = await asUser(db, { sub: s.verwaltungA }, (tx) =>
       tx.query("update public.school_jobs set titel='Aktualisiert' where school_id=$1", [s.schoolA]),
     );
-    expect(r.affectedRows).toBe(1);
+    expect(r.affectedRows ?? 0).toBe(0);
   });
 });
 

@@ -147,3 +147,47 @@ export async function withAnonContext<T>(work: (tx: Tx) => Promise<T>): Promise<
     return work(tx);
   });
 }
+
+/**
+ * SANKTIONIERTER anonymer SCHREIB-Pfad — AUSSCHLIESSLICH für öffentliche
+ * Portal-Submissions (Migrationen 0022/0023: `leads`, `job_applications`).
+ *
+ * Warum ein eigener Kontext: `withAnonContext` ist bewusst transaktionslokal
+ * READ ONLY (F-054) — ein anonymer Lead-/Bewerbungs-INSERT scheitert dort hart
+ * mit SQLSTATE 25006. Dieser Kontext ist die EINZIGE Ausnahme davon und bleibt
+ * ansonsten identisch eng:
+ *   - Claims leer → `app.current_user_id()` ist NULL; es greifen ausschließlich
+ *     die expliziten `*_public_insert`-Policies der Submission-Tabellen
+ *     (WITH CHECK: status='neu', Einwilligungen gesetzt, Ziel gelistet/aktiv).
+ *   - Spalten-Grants der Migrationen begrenzen zusätzlich, WAS geschrieben
+ *     werden kann (kein status-/id-/deleted_at-Insert; UPDATE/DELETE anonym
+ *     ohnehin policy-los = deny).
+ *   - KEIN `RETURNING` verwenden: Postgres wendet die SELECT-Policies auf
+ *     RETURNING an — anonym gibt es kein SELECT, die Rückgabe würde hart
+ *     scheitern (gewollt; Erfolg wird ohne Datenrückgabe signalisiert).
+ *
+ * Aufrufer-Pflichten (Modul-Schicht, siehe modules/leads bzw. modules/jobs):
+ * Zod-Validierung, Anti-Missbrauchs-Kette (Honeypot/Zeitfalle/Rate-Limit) und
+ * serverseitige Auflösung der Ziel-IDs aus dem Routen-Slug — NIE aus dem
+ * Formular (IDOR-Schutz).
+ *
+ * DURCHSETZUNG: (a) ESLint sperrt den Import dieses Kontexts überall außer in
+ * src/modules/leads/** und src/modules/jobs/** (PUBLIC_SUBMISSION_IMPORT_SELECTOR,
+ * eslint.config.mjs Block 5b); (b) auf DB-Ebene begrenzen die INSERT-Policies +
+ * Spalten-Grants der Migrationen 0022/0023, WAS ein Claims-loser app_user
+ * überhaupt schreiben kann — andere Tabellen bleiben für diesen Kontext deny.
+ */
+export async function withPublicSubmissionContext<T>(work: (tx: Tx) => Promise<T>): Promise<T> {
+  const database = getDb();
+  await assertSafeRuntimeRole(database);
+  return database.transaction(async (tx) => {
+    // app.public_submission: transaktionslokale Markierung dieses sanktionierten
+    // Pfads — einzige Konsumentin ist die SECURITY-DEFINER-Funktion
+    // app.job_bewerbung_empfaenger (0027), die interne Zustell-Adressen NUR
+    // innerhalb dieses Kontexts herausgibt (Spalten-Grant ist entzogen).
+    await tx.execute(
+      sql`select set_config('request.jwt.claims', '', true), set_config('app.public_submission', '1', true)${GUARDS}`,
+    );
+    return work(tx);
+  });
+}

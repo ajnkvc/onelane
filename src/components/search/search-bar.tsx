@@ -2,15 +2,22 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { CityIcon } from "./city-icons";
 
 /**
  * SearchBar — eigene CI-Suchleiste (kein fremdes Widget), „Adresse zuerst".
  * ----------------------------------------------------------------------------
  *  - Bei FOKUS öffnet sich das Dropdown VOR dem Tippen: oben „Standort verwenden"
  *    (Geolocation-Prompt erst HIER per Klick — nie beim Laden), darunter BELIEBTE
- *    STÄDTE als Quick-Picks. KEINE konkreten Fahrschulen.
- *  - Beim Tippen: Autocomplete (debounced) über /api/geocode.
+ *    STÄDTE als Quick-Picks mit Mini-Wahrzeichen (city-icons.tsx). KEINE
+ *    konkreten Fahrschulen.
+ *  - Beim Tippen: Autocomplete (debounced) über /api/geocode (unverändert).
  *  - Führerscheinklasse als CHIP-Reihe unter der Leiste (kein Select).
+ *  - Optionale Prop `klasse`: EXTERN gesteuerte Klassen-Vorauswahl (z. B. die
+ *    Hero-Kategorie-Tabs). Ist sie gesetzt (auch ""), gewinnt sie über die
+ *    interne Chip-Auswahl und reist beim Submit als `&klasse=…` mit; leerer
+ *    String heißt „keine Vorauswahl" (kein Param). Die Chips bleiben für alle
+ *    Einsatzorte OHNE externe Steuerung unverändert.
  * Combobox-A11y: role=combobox + listbox/option, aria-expanded, Esc schließt.
  */
 type Suggestion = { label: string; latitude: number; longitude: number; kind: string };
@@ -23,14 +30,19 @@ const POPULAR_CITIES = [
   "Köln",
   "Frankfurt am Main",
   "Stuttgart",
-  "Düsseldorf",
-  "Leipzig",
+  "Nürnberg",
+  "Augsburg",
 ];
 
-export function SearchBar({ compact = false }: { compact?: boolean } = {}) {
+export function SearchBar({
+  compact = false,
+  klasse: klasseExtern,
+}: { compact?: boolean; klasse?: string } = {}) {
   const router = useRouter();
   const [text, setText] = useState("");
   const [klasse, setKlasse] = useState("");
+  // Externe Vorauswahl (Prop) gewinnt über die interne Chip-Auswahl.
+  const effKlasse = klasseExtern !== undefined ? klasseExtern : klasse;
   const [picked, setPicked] = useState<Suggestion | null>(null);
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [open, setOpen] = useState(false);
@@ -73,9 +85,9 @@ export function SearchBar({ compact = false }: { compact?: boolean } = {}) {
 
   function submit() {
     if (picked) {
-      go({ lat: String(picked.latitude), lng: String(picked.longitude), ort: picked.label, ...(klasse ? { klasse } : {}) });
+      go({ lat: String(picked.latitude), lng: String(picked.longitude), ort: picked.label, ...(effKlasse ? { klasse: effKlasse } : {}) });
     } else if (text.trim()) {
-      go({ ort: text.trim(), ...(klasse ? { klasse } : {}) });
+      go({ ort: text.trim(), ...(effKlasse ? { klasse: effKlasse } : {}) });
     }
   }
 
@@ -85,7 +97,7 @@ export function SearchBar({ compact = false }: { compact?: boolean } = {}) {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setGeoBusy(false);
-        go({ lat: String(pos.coords.latitude), lng: String(pos.coords.longitude), ort: "Mein Standort", ...(klasse ? { klasse } : {}) });
+        go({ lat: String(pos.coords.latitude), lng: String(pos.coords.longitude), ort: "Mein Standort", ...(effKlasse ? { klasse: effKlasse } : {}) });
       },
       () => setGeoBusy(false),
       { enableHighAccuracy: true, timeout: 10000 },
@@ -98,9 +110,12 @@ export function SearchBar({ compact = false }: { compact?: boolean } = {}) {
     <div ref={boxRef} className="w-full max-w-2xl">
       {/* Such-Pille (z-30, damit das Dropdown über den Klassen-Chips liegt) */}
       <div className="relative z-30 flex items-center gap-2 rounded-full border border-border bg-card/95 p-1.5 pl-5 shadow-lg shadow-brand-ink/5 ring-1 ring-transparent backdrop-blur transition focus-within:border-brand-sky/50 focus-within:ring-brand-sky/30">
+        {/* Standort-Pin statt zweiter Lupe (Gründer 2026-07-02): das Icon IM
+            Feld beschreibt die EINGABE (Ort/Adresse), der runde Button rechts
+            die AKTION (Lupe) — Standardmuster gegen das Doppel-Icon. */}
         <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" className="shrink-0 text-brand-sky">
-          <circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2" />
-          <path d="m20 20-3-3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+          <path d="M12 21s7-6 7-11a7 7 0 1 0-14 0c0 5 7 11 7 11Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
+          <circle cx="12" cy="10" r="2.5" stroke="currentColor" strokeWidth="2" />
         </svg>
         <input
           type="text"
@@ -117,7 +132,7 @@ export function SearchBar({ compact = false }: { compact?: boolean } = {}) {
             if (e.key === "Enter") submit();
             if (e.key === "Escape") setOpen(false);
           }}
-          placeholder="Adresse, Stadtteil oder Stadt eingeben…"
+          placeholder="Deine Adresse eingeben …"
           aria-label="Adresse oder Ort"
           aria-expanded={open}
           aria-controls="search-suggestions"
@@ -125,12 +140,28 @@ export function SearchBar({ compact = false }: { compact?: boolean } = {}) {
           autoComplete="off"
           className="min-w-0 flex-1 bg-transparent py-2.5 text-base outline-none placeholder:text-muted-foreground"
         />
+        {/* Runder Icon-Button nach Airbnb-Vorbild (Gründer 2026-07-02):
+            kompakter Mint-Kreis mit Lupe; ab sm erweitert um das
+            „Suchen"-Label (beide Formen ≥48px Touch-Ziel). */}
         <button
           type="button"
           onClick={submit}
-          className="shrink-0 rounded-full bg-accent px-7 py-3 text-base font-semibold text-accent-foreground transition-transform duration-200 hover:scale-[1.03] active:scale-[0.97]"
+          aria-label="Suchen"
+          className="flex size-12 shrink-0 items-center justify-center rounded-full bg-accent font-semibold text-accent-foreground transition-transform duration-200 hover:scale-[1.05] hover:bg-brand-lime active:scale-[0.95] sm:size-auto sm:min-h-12 sm:gap-2 sm:px-6"
         >
-          Suchen
+          <svg
+            className="size-5"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+          <span className="hidden text-base sm:inline">Suchen</span>
         </button>
 
         {open && (showSuggestions || showCities) && (
@@ -170,9 +201,9 @@ export function SearchBar({ compact = false }: { compact?: boolean } = {}) {
                 <li className="px-4 pb-1 pt-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Beliebte Städte</li>
                 {POPULAR_CITIES.map((c) => (
                   <li key={c} role="option" aria-selected="false">
-                    <button type="button" onClick={() => go({ ort: c, ...(klasse ? { klasse } : {}) })} className={optionCls}>
-                      <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center rounded-full bg-secondary text-muted-foreground">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M4 21V8l7-4 7 4v13M9 21v-5h6v5" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/></svg>
+                    <button type="button" onClick={() => go({ ort: c, ...(effKlasse ? { klasse: effKlasse } : {}) })} className={optionCls}>
+                      <span aria-hidden="true" className="grid size-7 shrink-0 place-items-center">
+                        <CityIcon city={c} className="size-6" />
                       </span>
                       {c}
                     </button>

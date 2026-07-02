@@ -55,6 +55,18 @@ const FETCH_COMPUTED_SELECTOR = {
   message: FETCH_MSG,
 };
 const BASE_SYNTAX = [...ENV_SELECTORS, DANGEROUS_HTML_BLANKET, ...ELEVATED_DYN_SELECTORS];
+// Migration 0022/0023: withPublicSubmissionContext ist der EINZIGE anonyme Schreibpfad
+// und darf ausschließlich in den Submission-Modulen (src/modules/leads, src/modules/jobs)
+// importiert werden — überall sonst gesperrt (Block 5b hebt die Sperre dort gezielt auf).
+// Erfasst den ImportSpecifier; das Barrel-Re-Export in dal/index.ts ist ein ExportSpecifier
+// und bleibt unberührt.
+const PUBLIC_SUBMISSION_IMPORT_SELECTOR = {
+  selector: "ImportSpecifier[imported.name='withPublicSubmissionContext']",
+  message:
+    "withPublicSubmissionContext (anonymer Schreibpfad) darf nur in src/modules/leads/**, " +
+    "src/modules/jobs/** bzw. src/modules/ereignisse/** verwendet werden " +
+    "(Submission-Tabellen leads/job_applications + Zähler-Funktion app.zaehle_ereignis).",
+};
 
 // --- no-restricted-imports Bausteine ---------------------------------------
 const ELEVATED_PATHS = [
@@ -156,7 +168,7 @@ const eslintConfig = defineConfig([
   {
     files: ["src/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-syntax": ["error", ...BASE_SYNTAX],
+      "no-restricted-syntax": ["error", ...BASE_SYNTAX, PUBLIC_SUBMISSION_IMPORT_SELECTOR],
       "no-restricted-imports": [
         "error",
         { paths: [...ELEVATED_PATHS, ...CLIENT_PATHS], patterns: [...ELEVATED_PATTERNS, ...CLIENT_PATTERNS] },
@@ -186,6 +198,26 @@ const eslintConfig = defineConfig([
   {
     files: ["src/modules/**/*.{ts,tsx}"],
     rules: {
+      "no-restricted-syntax": ["error", ...BASE_SYNTAX, FETCH_COMPUTED_SELECTOR, PUBLIC_SUBMISSION_IMPORT_SELECTOR],
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...MODULES_ELEVATED_PATHS, ...CLIENT_PATHS],
+          patterns: [...MODULES_ELEVATED_PATTERNS, ...CLIENT_PATTERNS, ...NETWORK_PATTERNS],
+        },
+      ],
+      "no-restricted-globals": ["error", ...FETCH_GLOBALS],
+      "no-restricted-properties": ["error", ...FETCH_PROPERTIES],
+    },
+  },
+
+  // (5b) Submission-Module: EINZIGER erlaubter Nutzungsort von withPublicSubmissionContext
+  // (anonymer Schreibpfad für leads/job_applications + Ereignis-Zähler-Funktion, Migrationen
+  // 0022/0023/0024). Identisch zu (5), nur ohne den PUBLIC_SUBMISSION-Selector — alle übrigen
+  // Modul-Sperren bleiben aktiv.
+  {
+    files: ["src/modules/leads/**/*.{ts,tsx}", "src/modules/jobs/**/*.{ts,tsx}", "src/modules/ereignisse/**/*.{ts,tsx}"],
+    rules: {
       "no-restricted-syntax": ["error", ...BASE_SYNTAX, FETCH_COMPUTED_SELECTOR],
       "no-restricted-imports": [
         "error",
@@ -203,7 +235,7 @@ const eslintConfig = defineConfig([
   {
     files: ["src/server/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-syntax": ["error", ...BASE_SYNTAX, FETCH_COMPUTED_SELECTOR],
+      "no-restricted-syntax": ["error", ...BASE_SYNTAX, FETCH_COMPUTED_SELECTOR, PUBLIC_SUBMISSION_IMPORT_SELECTOR],
       "no-restricted-imports": [
         "error",
         { paths: [...ELEVATED_PATHS, ...CLIENT_PATHS], patterns: [...ELEVATED_PATTERNS, ...CLIENT_PATTERNS, ...NETWORK_PATTERNS] },
@@ -217,7 +249,7 @@ const eslintConfig = defineConfig([
   {
     files: ["src/app/api/**/*.ts"],
     rules: {
-      "no-restricted-syntax": ["error", ...BASE_SYNTAX, FETCH_COMPUTED_SELECTOR],
+      "no-restricted-syntax": ["error", ...BASE_SYNTAX, FETCH_COMPUTED_SELECTOR, PUBLIC_SUBMISSION_IMPORT_SELECTOR],
       "no-restricted-imports": ["error", { patterns: [...PRESENTATION_PATTERNS, ...NETWORK_PATTERNS] }],
       "no-restricted-globals": ["error", ...FETCH_GLOBALS],
       "no-restricted-properties": ["error", ...FETCH_PROPERTIES],

@@ -84,7 +84,7 @@ export async function seed(db: PGlite) {
   );
   // Stellenanzeige (Untertabelle) für Schreib-Verengungs-Test (Verwaltung vs. Fahrlehrer).
   await db.query(
-    "insert into public.school_jobs (school_id,titel) values ($1,'Fahrlehrer (m/w/d)')",
+    "insert into public.school_jobs (school_id,titel,slug) values ($1,'Fahrlehrer (m/w/d)','fahrlehrer-m-w-d-seed-a')",
     [schoolA],
   );
 

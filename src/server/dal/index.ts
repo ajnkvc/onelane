@@ -3,11 +3,15 @@ import "server-only";
 /**
  * DAL — die öffentliche Schnittstelle des Datenzugriffs.
  * ----------------------------------------------------------------------------
- * Datenzugriff im REGULÄREN Request-Pfad ausschließlich über diese beiden Wege
- * (beide laufen als RLS-pflichtige Rolle `app_user`):
- *   - withCurrentUserContext(work)   → authentifizierter Nutzerkontext; `sub` stammt
+ * Datenzugriff im REGULÄREN Request-Pfad ausschließlich über diese Wege
+ * (alle laufen als RLS-pflichtige Rolle `app_user`):
+ *   - withCurrentUserContext(work)      → authentifizierter Nutzerkontext; `sub` stammt
  *     AUSSCHLIESSLICH aus der verifizierten Session (kein Impersonation-Footgun)
- *   - withAnonContext(work)          → öffentliche/anonyme Lesezugriffe (nur Public-RLS)
+ *   - withAnonContext(work)             → öffentliche/anonyme Lesezugriffe (nur Public-RLS;
+ *     transaktionslokal READ ONLY — Writes scheitern hart, F-054)
+ *   - withPublicSubmissionContext(work) → EINZIGER anonymer Schreibpfad, ausschließlich
+ *     für Portal-Submissions (leads/job_applications, Migrationen 0022/0023); kein
+ *     RETURNING, Policies + Spalten-Grants begrenzen den Schreibraum
  *
  * `withUserContext(claims, …)` (niedrig-level, akzeptiert beliebige Claims) wird BEWUSST
  * NICHT re-exportiert — Request-Code darf die RLS-Identität nicht frei setzen.
@@ -19,5 +23,6 @@ import "server-only";
 export {
   withCurrentUserContext,
   withAnonContext,
+  withPublicSubmissionContext,
   type VerifiedClaims,
 } from "./rls-context";

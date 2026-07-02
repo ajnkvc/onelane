@@ -46,7 +46,9 @@ describe("migrate-core", () => {
     const r2 = await runMigrations(db, migs);
     expect(r2.applied).toEqual([]);
     expect(r2.skipped.length).toBe(2);
-  });
+    // 20 s statt Default 5 s: unter Volllast (Dev-Server + parallele Läufe) flakte
+    // der Test wiederholt am Timeout — isoliert läuft er in ~1 s.
+  }, 20_000);
 
   it("erkennt Drift bei nachträglich geänderter, bereits angewandter Migration", async () => {
     const changed = [

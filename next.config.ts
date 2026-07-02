@@ -41,6 +41,18 @@ const nextConfig: NextConfig = {
   // serverseitige Sicherheit — siehe SECURITY.md Punkt 7).
   productionBrowserSourceMaps: false,
 
+  experimental: {
+    /**
+     * Server-Action-Body-Limit (Default 1 MB): der Bewerbungs-Funnel der Jobbörse
+     * (src/modules/jobs/actions.ts) nimmt CV (≤ 5 MB) + freiwilliges Foto (≤ 3 MB)
+     * als multipart/form-data entgegen — 10 MB decken beide Caps + Overhead.
+     * Die fachlichen Datei-Caps erzwingt die Action serverseitig (Größe, MIME,
+     * Magic-Bytes); vor öffentlichem Betrieb zusätzlich Edge-/WAF-Limits je Route
+     * (dokumentierte Auflage, SECURITY.md §8).
+     */
+    serverActions: { bodySizeLimit: "10mb" },
+  },
+
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
