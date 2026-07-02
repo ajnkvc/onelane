@@ -265,7 +265,7 @@ export default function VorschauResetKinetic() {
             no="01"
             kicker="So funktioniert’s"
             title="Drei Schritte. Kein Kleingedrucktes."
-            lead="Kein Konto, keine Buchungsstrecke, kein Haken — du bleibst in der Hand, die Fahrschule auch."
+            lead="Kein Konto, kein Kleingedrucktes, kein Haken — du bleibst in der Hand, die Fahrschule auch."
           />
 
           {/* Fahrbahn (Desktop) — die drei Stationen stehen exakt über den Schritten */}
