@@ -4,6 +4,7 @@ import { sql as dsql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { getToolingDbEnv } from "@/server/config/tooling";
 import { getDbSslOption } from "@/server/config/db-ssl";
+import { isProduction } from "@/lib/public-config";
 import {
   type ElevatedAudit,
   buildBaseMetadata,
@@ -29,24 +30,46 @@ import {
  * Lazy initialisiert (verbindet erst beim ersten Zugriff). `prepare: false` für den
  * Supabase-Transaction-Pooler.
  */
-let sql: ReturnType<typeof postgres> | null = null;
-let db: PostgresJsDatabase<Record<string, never>> | null = null;
+type ElevatedHandle = {
+  sql: ReturnType<typeof postgres>;
+  db: PostgresJsDatabase<Record<string, never>>;
+};
+
+/** Produktion: Prozess lebt lang, Module werden nicht neu instanziiert → Modul-Scope. */
+let moduleHandle: ElevatedHandle | null = null;
+
+/**
+ * Dev/HMR: analog zu client.ts — Turbopack instanziiert das Modul bei jedem Recompile
+ * neu; ein NUR modul-lokaler Cache leakt dann pro Recompile einen Pool (Verbindungen
+ * ohne idle_timeout bleiben offen, bis max_connections erschöpft ist). Außerhalb der
+ * Produktion wird der Pool an globalThis verankert; idle_timeout/max_lifetime räumen
+ * verwaiste Verbindungen zusätzlich ab. Produktion bleibt bewusst im Modul-Scope.
+ */
+const devGlobal = globalThis as typeof globalThis & { __onelanePgElevatedPool?: ElevatedHandle };
+
+function createHandle(): ElevatedHandle {
+  const { TOOLING_DATABASE_URL } = getToolingDbEnv();
+  const sql = postgres(TOOLING_DATABASE_URL, {
+    max: 5,
+    prepare: false,
+    ssl: getDbSslOption(TOOLING_DATABASE_URL),
+    // Nur Dev: zeitliche Schutzlimits (Sekunden) gegen verwaiste HMR-Pools.
+    ...(isProduction() ? {} : { idle_timeout: 20, max_lifetime: 60 * 30 }),
+  });
+  return { sql, db: drizzle(sql) };
+}
 
 /**
  * Liefert die (lazy initialisierte) erhöhte Drizzle-Instanz. ACHTUNG: umgeht RLS —
  * nur in klar abgegrenzten, protokollierten Tooling-/Webhook-Pfaden verwenden.
  */
 export function getElevatedDb(): PostgresJsDatabase<Record<string, never>> {
-  if (!db) {
-    const { TOOLING_DATABASE_URL } = getToolingDbEnv();
-    sql = postgres(TOOLING_DATABASE_URL, {
-      max: 5,
-      prepare: false,
-      ssl: getDbSslOption(TOOLING_DATABASE_URL),
-    });
-    db = drizzle(sql);
+  if (isProduction()) {
+    moduleHandle ??= createHandle();
+    return moduleHandle.db;
   }
-  return db;
+  devGlobal.__onelanePgElevatedPool ??= createHandle();
+  return devGlobal.__onelanePgElevatedPool.db;
 }
 
 /** Transaktions-Handle aus dem transaction()-Callback (erhöhter Pfad). */
