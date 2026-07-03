@@ -50,8 +50,12 @@ export function SiteHeader() {
             <span className="sm:hidden">Jobs</span>
             <span className="hidden sm:inline">Jobbörse</span>
           </Link>
+          {/* Login → SaaS-Portal /app (Gründer 2026-07-03: ALLE Rollen nutzen das
+              Portal — Schüler, Fahrlehrer, Schulen, intern). Nicht eingeloggte
+              Besucher leitet das Portal-Gate selbst zu /app/login; in Produktion
+              übernimmt der Host-Redirect (proxy.ts) auf app.onelane.de. */}
           <Link
-            href="/login"
+            href="/app"
             className="inline-flex min-h-11 items-center rounded-full border border-border bg-card px-4 text-foreground transition-colors duration-[var(--motion-duration-fast)] ease-[var(--motion-ease)] hover:border-primary/50 hover:text-primary sm:px-5"
           >
             Login

@@ -24,6 +24,7 @@ export function GET() {
 - Jobbörse (kuratierte Stellen von Fahrschulen, ohne bezahlte Platzierung): ${base}/jobs
 - Fahrlehrer:in werden (Quereinstieg kompakt erklärt): ${base}/jobs/fahrlehrer-werden
 - So sortieren wir (Transparenz zu Suche und Stellenanzeigen): ${base}/so-sortieren-wir
+- onelane os (Abos für Fahrschulen: start kostenlos, os als Betriebssystem): ${base}/os
 
 ## Ratgeber-Artikel
 ${RATGEBER_GUIDES.map((g) => `- ${g.titel}: ${base}/ratgeber/${g.slug}`).join("\n")}

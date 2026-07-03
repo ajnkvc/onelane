@@ -1,5 +1,5 @@
 import "server-only";
-import { getSiteUrl, isProduction } from "@/lib/public-config";
+import { getAppOrigins, getSiteUrl, isProduction } from "@/lib/public-config";
 
 /**
  * origin-guard.ts — Same-Origin-/CSRF-Schutz für ZUSTANDSÄNDERNDE Requests.
@@ -59,10 +59,10 @@ export function isOriginAllowed(
   return false;
 }
 
-/** Kanonische Origin-Allowlist (Seiten-Origin). Erweiterbar um App-/SaaS-Subdomains. */
+/** Kanonische Origin-Allowlist: Seiten-Origin + App-Portal-Origin (APP_HOST, OS-P1). */
 function allowedOrigins(): string[] {
   try {
-    return [getSiteUrl()];
+    return [getSiteUrl(), ...getAppOrigins()];
   } catch {
     return []; // fail-closed: ohne kanonische Origin ist nichts same-origin
   }

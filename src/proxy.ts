@@ -1,10 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { hardenAuthCookie } from "@/server/auth/cookie-options";
-import { getMapTileConfig, getPublicSupabaseConfig, isProduction } from "@/lib/public-config";
+import {
+  getAppHost,
+  getMapTileConfig,
+  getPublicSupabaseConfig,
+  isProduction,
+} from "@/lib/public-config";
 
 /**
- * proxy.ts — bereitet Locale & Session vor und setzt die CSP.
+ * proxy.ts — Host-Routing (App-Portal), CSP und Session-Refresh.
  * (Next.js 16: vormals "middleware.ts"; die Konvention heißt jetzt "proxy".)
  * ============================================================================
  * WICHTIG (Lehre aus CVE-2025-29927): Dieser Proxy macht ABSICHTLICH KEINE
@@ -14,9 +19,21 @@ import { getMapTileConfig, getPublicSupabaseConfig, isProduction } from "@/lib/p
  * unterstreicht: es ist eine vorgelagerte Netzwerk-Schicht, kein Auth-Layer.
  *
  * Aufgaben hier:
- *  1. CSP pro Request mit Nonce (script-src ohne 'unsafe-inline' in Produktion).
- *  2. Supabase-Session-Refresh (nur wenn konfiguriert) — Tokens erneuern und
- *     Cookies schreiben (Server Components können das nicht selbst).
+ *  1. HOST-ROUTING App-Portal (OS-P1, Next-16-proxy-Muster): Requests auf dem
+ *     APP_HOST (Env, z. B. app.onelane.de) werden intern auf /app/* gerewritet —
+ *     mit denselben durchgereichten Request-Headern (x-nonce/CSP), denn
+ *     NextResponse.rewrite() akzeptiert dasselbe `{ request: { headers } }`-Init
+ *     wie next(). /app/* auf dem PUBLIC-Host wird NUR in Produktion (und nur bei
+ *     konfiguriertem APP_HOST) per 308 auf den App-Host umgeleitet; der App-Host
+ *     selbst redirectet nie → keine Loop. Doppel-Präfix (/app/* auf dem App-Host)
+ *     wird hart mit 404 geblockt.
+ *  2. CSP pro Request mit Nonce (script-src ohne 'unsafe-inline' in Produktion).
+ *  3. Supabase-Session-Refresh (nur wenn konfiguriert) — Tokens erneuern und
+ *     Cookies schreiben (Server Components können das nicht selbst) — auf
+ *     DEMSELBEN Response-Objekt, damit Cookies den Rewrite überleben.
+ *  4. `x-portal-scope: app` als Request-Header für App-Scope-Requests (Root-
+ *     Layout: Theme/Shell-Weiche). Der Header wird IMMER zuerst vom Client-
+ *     Request entfernt (kein Spoofing) und nur hier gesetzt.
  *
  * KEIN Locale-Routing mehr (Single-Locale DE an der Domain-Wurzel; DACH später
  * via eigene ccTLD-Deployments).
@@ -90,8 +107,44 @@ function bounded<T>(p: Promise<T>, ms: number): Promise<T> {
 
 export async function proxy(request: NextRequest) {
   // Single-Locale (DE) an der Domain-Wurzel: KEIN Locale-Routing mehr. DACH später
-  // via eigene ccTLD-Deployments. Dieser Proxy macht NUR CSP + Session-Refresh
-  // (KEINE Autorisierung — Lehre aus CVE-2025-29927).
+  // via eigene ccTLD-Deployments. Dieser Proxy macht Host-Routing + CSP +
+  // Session-Refresh (KEINE Autorisierung — Lehre aus CVE-2025-29927).
+
+  // 0) Host-Routing App-Portal ---------------------------------------------
+  const appHost = getAppHost();
+  const host = (request.headers.get("host") ?? "").toLowerCase();
+  const isAppHost = appHost !== null && host === appHost;
+  const { pathname } = request.nextUrl;
+
+  // Public-Host + /app/* → 308 auf den App-Host, NUR Produktion + konfigurierter
+  // APP_HOST (Dev nutzt /app direkt). Der App-Host redirectet nie ⇒ keine Loop.
+  if (!isAppHost && appHost !== null && isProduction() && pathname.startsWith("/app")) {
+    const ziel = request.nextUrl.clone();
+    // APP_HOST ohne Port: hostname setzen UND Port verwerfen (url.host = "x" ohne
+    // Port ließe einen bestehenden Public-Port stehen); mit Port: komplett setzen.
+    if (appHost.includes(":")) {
+      ziel.host = appHost;
+    } else {
+      ziel.hostname = appHost;
+      ziel.port = "";
+    }
+    ziel.pathname = pathname.replace(/^\/app/, "") || "/";
+    return NextResponse.redirect(ziel, 308);
+  }
+
+  // Doppel-Präfix auf dem App-Host: /app/* existiert dort EXTERN nicht — der
+  // Präfix wird per 308 gestrippt (app.host/app/login → app.host/login). Damit
+  // funktionieren interne absolute /app-Redirects (z. B. redirect("/app/login"))
+  // hostübergreifend, ohne Duplicate-Content (Redirect statt Zweitauslieferung);
+  // eine Loop ist ausgeschlossen (Ziel beginnt nie mit /app).
+  if (isAppHost && pathname.startsWith("/app")) {
+    const ziel = request.nextUrl.clone();
+    ziel.pathname = pathname.replace(/^\/app/, "") || "/";
+    return NextResponse.redirect(ziel, 308);
+  }
+
+  // App-Scope = App-Host (alles wird nach /app gerewritet) ODER direkter /app-Pfad.
+  const isAppScope = isAppHost || pathname.startsWith("/app");
 
   // 1) CSP pro Request -----------------------------------------------------
   const supabase = getPublicSupabaseConfig();
@@ -101,11 +154,25 @@ export async function proxy(request: NextRequest) {
   const requestHeaders = new Headers(request.headers);
   // Defense-in-depth (CVE-2025-29927): den middleware-Bypass-Header NIE vom Client durchreichen.
   requestHeaders.delete("x-middleware-subrequest");
+  // Scope-Header NIE vom Client übernehmen (Spoofing) — nur der Proxy setzt ihn.
+  requestHeaders.delete("x-portal-scope");
   requestHeaders.set("x-nonce", nonce);
   requestHeaders.set("content-security-policy", csp);
+  if (isAppScope) requestHeaders.set("x-portal-scope", "app");
 
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  // Rewrite/Weiterleitung mit DENSELBEN Request-Headern (x-nonce erreicht die
+  // gerewritete Route; rewrite() nimmt dasselbe init wie next() — R1-Recherche).
+  let response: NextResponse;
+  if (isAppHost) {
+    const ziel = request.nextUrl.clone();
+    ziel.pathname = `/app${pathname === "/" ? "" : pathname}`;
+    response = NextResponse.rewrite(ziel, { request: { headers: requestHeaders } });
+  } else {
+    response = NextResponse.next({ request: { headers: requestHeaders } });
+  }
   response.headers.set("content-security-policy", csp);
+  // Das App-Portal ist nie für Suchmaschinen bestimmt (zusätzlich zur Metadata-Ebene).
+  if (isAppScope) response.headers.set("x-robots-tag", "noindex");
 
   // 2) Supabase-Session-Refresh (nur wenn konfiguriert) — KEINE Authz! -----
   if (supabase) {

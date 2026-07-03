@@ -13,6 +13,7 @@ export * from "./ingestion";
 export * from "./content";
 export * from "./monetization";
 export * from "./saas";
+export * from "./api";
 export * from "./enrollments";
 export * from "./portal";
 export * from "./communication";

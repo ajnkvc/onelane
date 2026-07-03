@@ -123,7 +123,8 @@ describe("permissions — Fehlerklassen + HTTP-Mapping (F-087)", () => {
     }
   });
   it("requireUser gibt den Nutzer zurück, wenn vorhanden", () => {
-    const u = { id: "11111111-1111-4111-8111-111111111111", email: null };
+    // SessionUser trägt seit OS-P1 zusätzlich aal/amr (getClaims-Verifikation).
+    const u = { id: "11111111-1111-4111-8111-111111111111", email: null, aal: "aal1" as const, amr: [] };
     expect(requireUser(u)).toBe(u);
   });
   it("toHttpAuthError mappt AuthorizationError, CsrfOriginError und Unbekanntes", () => {

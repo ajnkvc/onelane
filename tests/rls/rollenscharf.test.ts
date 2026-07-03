@@ -95,7 +95,8 @@ describe("0013 — Self-Insert-Guard (account_typ)", () => {
 describe("0013 — Eskalationsschutz: instructors.user_id ohne Schulmitgliedschaft", () => {
   it("ghostU (nur instructors.user_id, KEINE Schulmitgliedschaft) sieht NICHTS", async () => {
     expect(await selectAsUser(db, { sub: s.ghostU }, "select id from public.enrollments")).toHaveLength(0);
-    expect(await selectAsUser(db, { sub: s.ghostU }, "select * from public.appointments")).toHaveLength(0);
+    // seit 0029 spalten-minimiert (preis/abgerechnet ohne SELECT-Grant) → keine `*`-Projektion
+    expect(await selectAsUser(db, { sub: s.ghostU }, "select id from public.appointments")).toHaveLength(0);
     expect(await selectAsUser(db, { sub: s.ghostU }, "select id from public.invoices")).toHaveLength(0);
   });
 });

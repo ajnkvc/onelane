@@ -12,6 +12,9 @@ import "server-only";
  *   - withPublicSubmissionContext(work) → EINZIGER anonymer Schreibpfad, ausschließlich
  *     für Portal-Submissions (leads/job_applications, Migrationen 0022/0023); kein
  *     RETURNING, Policies + Spalten-Grants begrenzen den Schreibraum
+ *   - apiKeyAuthLookup(keyHash)         → GESCHLOSSENER Maschinen-Auth-Pfad des API-/
+ *     MCP-Zugangs (Migration 0031, GUC-gated Definer; kein Transaktions-Zugriff für
+ *     Aufrufer). EINZIGER erlaubter Importeur: src/modules/api/db-key.ts (ESLint).
  *
  * `withUserContext(claims, …)` (niedrig-level, akzeptiert beliebige Claims) wird BEWUSST
  * NICHT re-exportiert — Request-Code darf die RLS-Identität nicht frei setzen.
@@ -24,5 +27,6 @@ export {
   withCurrentUserContext,
   withAnonContext,
   withPublicSubmissionContext,
+  apiKeyAuthLookup,
   type VerifiedClaims,
 } from "./rls-context";
