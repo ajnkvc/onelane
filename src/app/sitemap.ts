@@ -24,6 +24,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${base}/eltern`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/so-sortieren-wir`, changeFrequency: "monthly", priority: 0.4 },
     { url: `${base}/fuer-fahrschulen`, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${base}/os`, changeFrequency: "monthly", priority: 0.5 },
     // Ratgeber: Hub + alle Artikel aus der Registry (EINE Quelle, kein Drift).
     { url: `${base}/ratgeber`, changeFrequency: "weekly", priority: 0.6 },
     ...RATGEBER_GUIDES.map((g) => ({

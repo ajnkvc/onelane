@@ -1,8 +1,9 @@
 /**
  * highlights.ts — reine, testbare Ableitung der „Highlights der Fahrschule".
  * ----------------------------------------------------------------------------
- * Booking-Muster, aber EHRLICH: Jedes Highlight braucht eine echte
- * Datengrundlage in den strukturierten Angaben (kein Marketing-Freitext, keine
+ * Highlight-Muster bekannter Vergleichsportale, aber EHRLICH: Jedes Highlight
+ * braucht eine echte Datengrundlage in den strukturierten Angaben (kein
+ * Marketing-Freitext, keine
  * Vermutung). Maximal 5 Einträge in fester Reihenfolge; die UI zeigt die Box
  * erst ab 2 Highlights (sonst weglassen). Keine DB, kein server-only —
  * deterministisch unit-testbar.

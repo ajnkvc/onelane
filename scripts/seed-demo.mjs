@@ -10,7 +10,21 @@
  * Kennzeichnung: driving_schools.source = 'dev_seed' (source_ref
  * 'dev_seed:<lauf-nr>-<schul-kurzname>'). ALLE Namen/Adressen/Kontakte sind
  * erfunden; E-Mail/Website nutzen ausschließlich reservierte example-Domains.
- * KEINE leads/job_applications (kommen durch echte Formulare), KEINE users.
+ *
+ * OS-P2 (Dashboards): Schule 1 erhält zusätzlich BETRIEBS-Demodaten, damit die
+ * rollenspezifischen Dashboards echte Zahlen zeigen: Termine (heute/morgen),
+ * Fahrlehrer-Verfügbarkeit (heute), Rechnungen (offen/bezahlt) sowie wenige
+ * leads/job_applications (klar als dev_seed erkennbar, quelle_pfad '/dev-seed').
+ * Historischer Hinweis „keine leads/Bewerbungen im Seed" gilt seit OS-P2 nur
+ * noch für die übrigen Schulen — echte Formular-Submissions bleiben der
+ * Referenzweg, die Seed-Zeilen dienen ausschließlich der Dashboard-Entwicklung.
+ *
+ * OS-P1 (0029): zusätzlich DEV-USER je Rolle (platform admin/support/editor/
+ * vertrieb; Schule-1: inhaber/verwaltung/fahrlehrer; student mit Enrollment;
+ * API-Partner + Mitglied) mit FESTEN UUIDs — identisch zur Allowlist in
+ * src/server/auth/dev-session.ts (Dev-Session-Seam, Login-Picker). Kennzeichnung
+ * über die E-Mail-Domain @dev.onelane.example. Dazu 1 feature_flag (pay, global,
+ * AUS) und time_entries-Beispiele. KEINE echten Zugangsdaten/Passwörter.
  *
  * Idempotent: Vor jedem Seed werden ALLE 'dev_seed'-Bestände entfernt
  * (gleiche Logik wie --remove) — zweimal ausführen erzeugt keine Duplikate.
@@ -23,6 +37,7 @@
  * Trigger feuern trotzdem). Löschreihenfolge beachtet die FK-RESTRICT-Pfade
  * (job_applications/leads ZUERST, dann Subressourcen, Schulen, verwaiste Brands).
  */
+import { createHash } from "node:crypto";
 import postgres from "postgres";
 import { getDbSslOption, dbHostFromUrl } from "./db-ssl.mjs";
 
@@ -901,13 +916,102 @@ const SCHULEN = [
 ];
 
 // ----------------------------------------------------------------------------
+// DEV-USER (OS-P1): FESTE UUIDs — MÜSSEN mit der Allowlist DEV_USERS in
+// src/server/auth/dev-session.ts identisch bleiben (Dev-Login signiert nur diese).
+// Kennzeichnung/Entfernung über die E-Mail-Domain @dev.onelane.example.
+// ----------------------------------------------------------------------------
+const DEV_DOMAIN = "dev.onelane.example";
+const DEV_USERS = [
+  { key: "admin", id: "11111111-1111-4111-8111-000000000001", vorname: "Aleksandar", nachname: "Dev", typ: "platform_staff", plattformRolle: "admin" },
+  { key: "support", id: "11111111-1111-4111-8111-000000000002", vorname: "Selin", nachname: "Dev", typ: "platform_staff", plattformRolle: "support" },
+  { key: "editor", id: "11111111-1111-4111-8111-000000000003", vorname: "Eva", nachname: "Dev", typ: "platform_staff", plattformRolle: "editor" },
+  { key: "vertrieb", id: "11111111-1111-4111-8111-000000000004", vorname: "Viktor", nachname: "Dev", typ: "platform_staff", plattformRolle: "vertrieb" },
+  { key: "inhaber", id: "11111111-1111-4111-8111-000000000005", vorname: "Ingrid", nachname: "Dev", typ: "school_staff", schulRolle: "inhaber" },
+  { key: "verwaltung", id: "11111111-1111-4111-8111-000000000006", vorname: "Volkan", nachname: "Dev", typ: "school_staff", schulRolle: "verwaltung" },
+  { key: "fahrlehrer", id: "11111111-1111-4111-8111-000000000007", vorname: "Frida", nachname: "Dev", typ: "school_staff", schulRolle: "fahrlehrer" },
+  { key: "student", id: "11111111-1111-4111-8111-000000000008", vorname: "Sam", nachname: "Dev", typ: "student" },
+  // API-Partner-Mitglied: eigener account_typ 'partner' existiert (noch) nicht —
+  // bewusst school_staff OHNE Schul-Mitgliedschaft (Rechte kommen NUR aus
+  // api_partner_members; Muster „ghost"-User der RLS-Tests).
+  { key: "api-partner", id: "11111111-1111-4111-8111-000000000009", vorname: "Pia", nachname: "Dev", typ: "school_staff" },
+];
+const DEV_PARTNER_NAME = "dev_seed Partner Alpha";
+// OS-P3 Paket C (ADDITIV): fester Dev-API-Schlüssel des Partners — Token/Prefix
+// MÜSSEN mit DEV_API_KEY_TOKEN/DEV_API_KEY_PREFIX in src/modules/api/dev-key.ts
+// identisch bleiben (die DB hält NUR den sha256-Hash — Muster Migration 0029).
+// SEIT WELLE 2 ist DIESER Seed-Datensatz der einzige Weg, wie der Dev-Token
+// funktioniert: der Key-Lookup läuft immer gegen die DB (app.api_key_pruefen,
+// Migration 0031) — ohne Seed antwortet die API fail-closed mit 401. Der
+// bekannte Klartext lebt bewusst NUR hier + als Anzeige-Konstante hinter dem
+// Dev-Session-Gate (Loopback-Guard oben schützt Prod).
+const DEV_API_KEY_TOKEN = "olk_dev_alpha_nur_lokal_4f2e9c81d7b35a60";
+const DEV_API_KEY_PREFIX = "olk_dev_alpha";
+
+// ----------------------------------------------------------------------------
 // Entfernen (auch Idempotenz-Vorlauf des Seeds): FK-sichere Reihenfolge —
+// Dev-User-Daten (time_entries/enrollments blockieren Schul-/User-Deletes) →
 // job_applications/leads (RESTRICT!) → Subressourcen → Schulen → verwaiste Brands.
 // ----------------------------------------------------------------------------
 const uuidArr = (ids) => `{${ids.join(",")}}`;
 
+async function removeDevUsers(sql, counts) {
+  const devUserFilter = `select id from public.users where email like '%@${DEV_DOMAIN}'`;
+  counts.time_entries = (await sql.unsafe(
+    `delete from public.time_entries where member_user_id in (${devUserFilter})`,
+  )).count;
+  // OS-P2: Rechnungen (FK RESTRICT!) und Termine haengen am Dev-Enrollment und
+  // MUESSEN vor den enrollments weg (appointments wuerde kaskadieren — explizit
+  // fuer den Count-Report).
+  counts.invoices = (await sql.unsafe(
+    `delete from public.invoices where enrollment_id in
+       (select id from public.enrollments where student_user_id in (${devUserFilter}))`,
+  )).count;
+  counts.appointments = (await sql.unsafe(
+    `delete from public.appointments where enrollment_id in
+       (select id from public.enrollments where student_user_id in (${devUserFilter}))`,
+  )).count;
+  counts.enrollments = (await sql.unsafe(
+    `delete from public.enrollments where student_user_id in (${devUserFilter})`,
+  )).count;
+  // OS-P2: die mit Dev-Usern verknuepften instructors-Zeilen (Frida Dev) muessen
+  // VOR den users weg (FK RESTRICT); instructor_availability kaskadiert mit.
+  counts.instructors_dev = (await sql.unsafe(
+    `delete from public.instructors where user_id in (${devUserFilter})`,
+  )).count;
+  counts.api_keys = (await sql.unsafe(
+    `delete from public.api_keys where partner_id in
+       (select id from public.api_partners where name like 'dev_seed%')`,
+  )).count;
+  counts.webhook_subscriptions = (await sql.unsafe(
+    `delete from public.webhook_subscriptions where partner_id in
+       (select id from public.api_partners where name like 'dev_seed%')`,
+  )).count;
+  counts.api_partner_members = (await sql.unsafe(
+    `delete from public.api_partner_members where partner_id in
+       (select id from public.api_partners where name like 'dev_seed%')
+       or user_id in (${devUserFilter})`,
+  )).count;
+  counts.api_partners = (await sql.unsafe(
+    "delete from public.api_partners where name like 'dev_seed%'",
+  )).count;
+  // Nur der globale pay-Flag-Datensatz des Seeds (Loopback-Guard oben schützt Prod).
+  counts.feature_flags = (await sql.unsafe(
+    "delete from public.feature_flags where scope = 'global' and key = 'pay'",
+  )).count;
+  counts.school_members = (await sql.unsafe(
+    `delete from public.school_members where user_id in (${devUserFilter})`,
+  )).count;
+  counts.platform_role_assignments = (await sql.unsafe(
+    `delete from public.platform_role_assignments where user_id in (${devUserFilter})`,
+  )).count;
+  counts.users = (await sql.unsafe(
+    `delete from public.users where email like '%@${DEV_DOMAIN}'`,
+  )).count;
+}
+
 async function removeSeed(sql) {
   const counts = {};
+  await removeDevUsers(sql, counts);
   const rows = await sql.unsafe(
     "select id, brand_id from public.driving_schools where source = 'dev_seed'",
   );
@@ -926,9 +1030,12 @@ async function removeSeed(sql) {
     )).count;
 
     // Subressourcen (CASCADE würde greifen — explizit für den Count-Report).
+    // OS-WELLE-2: school_subscriptions (Abo-Demo Schule 1) hängt mit school_id
+    // an der Schule und läuft hier mit.
     const subTables = [
       "school_prices", "school_opening_hours", "school_vehicles", "instructors",
       "school_faq_items", "school_jobs", "school_images", "school_profiles", "school_billing",
+      "school_subscriptions",
     ];
     for (const table of subTables) {
       counts[table] = (await sql.unsafe(
@@ -966,6 +1073,9 @@ async function seedAll(sql) {
     [BRAND.name],
   );
 
+  // „Schule 1" für die Dev-User-Mitgliedschaften (erste Schule = Meridian Schwabing).
+  let schule1Id = null;
+
   for (const s of SCHULEN) {
     const [school] = await sql.unsafe(
       `insert into public.driving_schools
@@ -987,6 +1097,7 @@ async function seedAll(sql) {
       ],
     );
     const sid = school.id;
+    if (s.kurz === "meridian-schwabing") schule1Id = sid;
 
     await sql.unsafe(
       `insert into public.school_profiles
@@ -1079,6 +1190,226 @@ async function seedAll(sql) {
       );
     }
   }
+
+  // --------------------------------------------------------------------------
+  // OS-P1: Dev-User (feste UUIDs = Allowlist des Dev-Session-Seams) + Rollen,
+  // Schul-Mitgliedschaften (Schule 1), Student-Enrollment, API-Partner+Mitglied,
+  // feature_flag pay (global, AUS) und time_entries-Beispiele.
+  // --------------------------------------------------------------------------
+  if (!schule1Id) throw new Error("seed-demo: Schule 1 (meridian-schwabing) nicht gefunden.");
+
+  for (const u of DEV_USERS) {
+    await sql.unsafe(
+      `insert into public.users (id, email, vorname, nachname, account_typ)
+       values ($1, $2, $3, $4, $5)`,
+      [u.id, `${u.key}@${DEV_DOMAIN}`, u.vorname, u.nachname, u.typ],
+    );
+    if (u.plattformRolle) {
+      await sql.unsafe(
+        "insert into public.platform_role_assignments (user_id, role) values ($1, $2)",
+        [u.id, u.plattformRolle],
+      );
+    }
+    if (u.schulRolle) {
+      await sql.unsafe(
+        "insert into public.school_members (user_id, school_id, rolle) values ($1, $2, $3)",
+        [u.id, schule1Id, u.schulRolle],
+      );
+    }
+  }
+
+  const student = DEV_USERS.find((u) => u.key === "student");
+  const [enrollment] = await sql.unsafe(
+    `insert into public.enrollments (student_user_id, school_id, fuehrerscheinklasse, status)
+     values ($1, $2, 'B', 'active') returning id`,
+    [student.id, schule1Id],
+  );
+
+  const [partner] = await sql.unsafe(
+    "insert into public.api_partners (name, status) values ($1, 'aktiv') returning id",
+    [DEV_PARTNER_NAME],
+  );
+  const partnerMitglied = DEV_USERS.find((u) => u.key === "api-partner");
+  await sql.unsafe(
+    "insert into public.api_partner_members (partner_id, user_id) values ($1, $2)",
+    [partner.id, partnerMitglied.id],
+  );
+
+  // --------------------------------------------------------------------------
+  // OS-P3 Paket C (ADDITIV): EIN api_keys-Datensatz für den Dev-Partner, damit
+  // die Partner-Konsole (/app/partner-api/keys) echte 0029-RLS-Zeilen zeigt
+  // (lesbar: prefix/scopes/status — key_hash bleibt für app_user unsichtbar).
+  // Entfernung läuft bereits über removeDevUsers (api_keys via Partner-Name).
+  // --------------------------------------------------------------------------
+  await sql.unsafe(
+    `insert into public.api_keys (partner_id, key_hash, prefix, scopes, status)
+     values ($1, $2, $3, '{rest_read,mcp}', 'aktiv')`,
+    [partner.id, createHash("sha256").update(DEV_API_KEY_TOKEN, "utf8").digest("hex"), DEV_API_KEY_PREFIX],
+  );
+
+  // pay bleibt AUS (vertraulich; sichtbar nur für admin im intern-Bereich, P3).
+  await sql.unsafe(
+    `insert into public.feature_flags (scope, school_id, key, aktiv)
+     select 'global', null, 'pay', false
+      where not exists (select 1 from public.feature_flags where scope = 'global' and key = 'pay')`,
+  );
+
+  const fahrlehrer = DEV_USERS.find((u) => u.key === "fahrlehrer");
+  const verwaltung = DEV_USERS.find((u) => u.key === "verwaltung");
+  await sql.unsafe(
+    `insert into public.time_entries (school_id, member_user_id, start_at, ende_at, kategorie, notiz) values
+       ($1, $2, now() - interval '1 day 9 hours', now() - interval '1 day 1 hour', 'fahrstunde', 'Fahrstunden-Block (Dev-Beispiel)'),
+       ($1, $2, now() - interval '2 hours', null, 'buero', 'Offener Eintrag (Dev-Beispiel)'),
+       ($1, $3, now() - interval '1 day 8 hours', now() - interval '1 day 2 hours', 'verwaltung', 'Büro-Tag (Dev-Beispiel)')`,
+    [schule1Id, fahrlehrer.id, verwaltung.id],
+  );
+
+  // --------------------------------------------------------------------------
+  // OS-P2: BETRIEBS-Demodaten fuer die Dashboards (nur Schule 1, klar dev_seed).
+  // Zeiten relativ zu "heute" in Europe/Berlin, damit "Termine heute"/"Slots
+  // heute" bei jedem Seed-Lauf stimmen. Entfernung: invoices/appointments vor
+  // enrollments (removeDevUsers), leads/job_applications ueber die Schul-IDs,
+  // instructor_availability kaskadiert mit den instructors.
+  // --------------------------------------------------------------------------
+
+  // Fahrlehrerin Frida (Dev-User) bekommt eine eigene instructors-Zeile —
+  // dieselbe Verknuepfung (user_id) wie in tests/rls/seed.ts. Nur so findet das
+  // "Mein Tag"-Dashboard ihre Termine (app.own_instructor_ids, Migration 0030).
+  const [instrFrida] = await sql.unsafe(
+    `insert into public.instructors (user_id, school_id, name, slug, aktiv)
+     values ($1, $2, 'Frida Dev', 'frida-dev', true) returning id`,
+    [fahrlehrer.id, schule1Id],
+  );
+  const [instrBernd] = await sql.unsafe(
+    "select id from public.instructors where school_id = $1 and slug = 'bernd-auracher'",
+    [schule1Id],
+  );
+
+  // Termine: gestern (abgeschlossen), heute (3x), morgen (1x) — Berlin-Tagesanker.
+  const T = (versatz) =>
+    `((date_trunc('day', now() at time zone 'Europe/Berlin') + interval '${versatz}') at time zone 'Europe/Berlin')`;
+  await sql.unsafe(
+    `insert into public.appointments
+       (enrollment_id, instructor_id, typ, start, ende, status, storno_frist_bis, preis)
+     values
+       ($1, $2, 'fahrstunde', ${T("-15 hours")}, ${T("-14 hours 15 minutes")}, 'completed', null, 68.00),
+       ($1, $2, 'fahrstunde', ${T("9 hours")},  ${T("9 hours 45 minutes")},  'booked', ${T("-15 hours")}, 68.00),
+       ($1, $3, 'fahrstunde', ${T("11 hours")}, ${T("11 hours 45 minutes")}, 'booked', ${T("-13 hours")}, 68.00),
+       ($1, null, 'theorie',  ${T("18 hours 30 minutes")}, ${T("20 hours")}, 'booked', null, null),
+       ($1, $2, 'fahrstunde', ${T("39 hours")}, ${T("39 hours 45 minutes")}, 'booked', ${T("15 hours")}, 68.00)`,
+    [enrollment.id, instrFrida.id, instrBernd?.id ?? instrFrida.id],
+  );
+
+  // Fahrlehrer-Verfuegbarkeit HEUTE (Berlin-Datum) + ein Blocker-Beispiel.
+  await sql.unsafe(
+    `insert into public.instructor_availability (instructor_id, datum, von, bis, ist_blockiert)
+     values
+       ($1, (now() at time zone 'Europe/Berlin')::date, '08:00', '12:00', false),
+       ($1, (now() at time zone 'Europe/Berlin')::date, '14:00', '18:00', false),
+       ($1, (now() at time zone 'Europe/Berlin')::date, '12:00', '13:00', true),
+       ($2, (now() at time zone 'Europe/Berlin')::date, '09:00', '17:00', false)`,
+    [instrFrida.id, instrBernd?.id ?? instrFrida.id],
+  );
+
+  // Rechnungen: 1x offen (Dashboard "offene Posten"), 1x bezahlt.
+  await sql.unsafe(
+    `insert into public.invoices (enrollment_id, betrag, positionen, status, erstellt_am, bezahlt_am)
+     values
+       ($1, 396.00, '[{"text":"Fahrstunden Juni","anzahl":6}]'::jsonb, 'open', now() - interval '3 days', null),
+       ($1, 460.00, '[{"text":"Grundbetrag Klasse B","anzahl":1}]'::jsonb, 'paid', now() - interval '21 days', now() - interval '14 days')`,
+    [enrollment.id],
+  );
+
+  // Anfragen (leads) fuer Schule 1: 2x neu (eine aelter als 48 h → Risiko-Insight),
+  // 1x gesehen. Alle Kontakte fiktiv (example-Domain), quelle_pfad '/dev-seed'.
+  await sql.unsafe(
+    `insert into public.leads
+       (school_id, klasse, zeitraum, vorname, nachname, email, telefon, nachricht,
+        ist_minderjaehrig, einwilligung_datenschutz_at, einwilligung_weitergabe_at,
+        status, quelle_pfad, created_at)
+     values
+       ($1, 'B', 'sofort', 'Lena', 'Beispiel', 'lena@dev.onelane.example', null,
+        'Ich möchte im August anfangen.', false, now() - interval '3 hours',
+        now() - interval '3 hours', 'neu', '/dev-seed', now() - interval '3 hours'),
+       ($1, 'B197', 'in_1_3_monaten', 'Deniz', 'Beispiel', 'deniz@dev.onelane.example', null,
+        null, false, now() - interval '3 days', now() - interval '3 days',
+        'neu', '/dev-seed', now() - interval '3 days'),
+       ($1, 'A1', 'sofort', 'Mara', 'Beispiel', 'mara@dev.onelane.example', null,
+        'Gibt es kurzfristig Plätze?', false, now() - interval '5 days',
+        now() - interval '5 days', 'gesehen', '/dev-seed', now() - interval '5 days')`,
+    [schule1Id],
+  );
+
+  // Bewerbung auf die Schwabing-Stellenanzeige (Dashboard "neue Bewerbungen").
+  await sql.unsafe(
+    `insert into public.job_applications
+       (job_id, name, email, telefon, nachricht, bewerber_status, klassen,
+        verfuegbar_status, einwilligung_datenschutz_at, einwilligung_weitergabe_at,
+        status, quelle_pfad, created_at)
+     select j.id, 'Jan Beispiel', 'jan@dev.onelane.example', null,
+            'Fahrlehrerlaubnis BE vorhanden, Einstieg kurzfristig möglich.',
+            'fahrlehrer', '{B,BE}', 'sofort', now() - interval '26 hours',
+            now() - interval '26 hours', 'neu', '/dev-seed', now() - interval '26 hours'
+       from public.school_jobs j
+      where j.school_id = $1 and j.slug = 'fahrlehrer-klasse-b-vollzeit-meridian-schwabing'`,
+    [schule1Id],
+  );
+
+  // --------------------------------------------------------------------------
+  // OS-P3 PAKET A (ADDITIV): Demodaten fuer die OS-Kern-Module.
+  //  - 1 Quereinsteiger-Bewerbung: die Schule sieht sie NUR neutralisiert
+  //    ("ueber onelane vermittelt", keine Kontaktdaten — modules/portal/os-kern).
+  //  - 2 weitere Enrollments des Dev-Studenten (A1 abgeschlossen / B197 offen)
+  //    + abgeschlossene Fahrstunden fuer den Fahrstunden-Zaehler und die
+  //    Status-/Klassen-Filter der Schueler-Liste.
+  // Entfernung laeuft ueber die BESTEHENDEN Pfade (job_applications via
+  // Schul-IDs, enrollments/appointments via Dev-User) — keine neuen Regeln.
+  // --------------------------------------------------------------------------
+  await sql.unsafe(
+    `insert into public.job_applications
+       (job_id, name, email, telefon, nachricht, bewerber_status, klassen,
+        verfuegbar_status, einwilligung_datenschutz_at, einwilligung_weitergabe_at,
+        status, quelle_pfad, created_at)
+     select j.id, 'Quinn Beispiel', 'quinn@dev.onelane.example', null,
+            'Interesse an der Ausbildung zum Fahrlehrer.',
+            'quereinsteiger', '{}', 'flexibel', now() - interval '8 hours',
+            now() - interval '8 hours', 'neu', '/dev-seed', now() - interval '8 hours'
+       from public.school_jobs j
+      where j.school_id = $1 and j.slug = 'fahrlehrer-klasse-b-vollzeit-meridian-schwabing'`,
+    [schule1Id],
+  );
+  // --------------------------------------------------------------------------
+  // OS-WELLE-2 (ADDITIV): Abo-Demo für Schule 1 — school_subscriptions auf den
+  // 0029-Referenzplan 'os' (aktiv, 3 Seats), damit /os/abo echte 0031-RLS-
+  // Zeilen zeigt. Entfernung: subTables in removeSeed (school_id-Spalte).
+  // --------------------------------------------------------------------------
+  await sql.unsafe(
+    `insert into public.school_subscriptions (school_id, plan_id, anzahl_lizenzen, status, start_datum)
+     select $1, p.id, 3, 'active', (now() at time zone 'Europe/Berlin')::date - 45
+       from public.subscription_plans p
+      where p.code = 'os'
+      limit 1`,
+    [schule1Id],
+  );
+
+  const [enrollmentA1] = await sql.unsafe(
+    `insert into public.enrollments (student_user_id, school_id, fuehrerscheinklasse, status, created_at)
+     values ($1, $2, 'A1', 'completed', now() - interval '190 days') returning id`,
+    [student.id, schule1Id],
+  );
+  await sql.unsafe(
+    `insert into public.enrollments (student_user_id, school_id, fuehrerscheinklasse, status, created_at)
+     values ($1, $2, 'B197', 'pending', now() - interval '2 days')`,
+    [student.id, schule1Id],
+  );
+  await sql.unsafe(
+    `insert into public.appointments (enrollment_id, instructor_id, typ, start, ende, status, preis)
+     values
+       ($1, $2, 'fahrstunde', now() - interval '180 days', now() - interval '180 days' + interval '45 minutes', 'completed', 62.00),
+       ($1, $2, 'fahrstunde', now() - interval '175 days', now() - interval '175 days' + interval '45 minutes', 'completed', 62.00),
+       ($1, $2, 'pruefung',   now() - interval '170 days', now() - interval '170 days' + interval '60 minutes', 'completed', null)`,
+    [enrollmentA1.id, instrFrida.id],
+  );
 }
 
 // ----------------------------------------------------------------------------
@@ -1096,10 +1427,24 @@ async function countSeed(sql) {
                      where s.brand_id = b.id and s.source = 'dev_seed')`,
   );
   counts.school_brands = brands.n;
+  // OS-P1: Dev-User-Bestand (unabhängig von den Schul-IDs zählbar).
+  const [devUsers] = await sql.unsafe(
+    `select count(*)::int as n from public.users where email like '%@${DEV_DOMAIN}'`,
+  );
+  counts.users = devUsers.n;
+  const [partner] = await sql.unsafe(
+    "select count(*)::int as n from public.api_partners where name like 'dev_seed%'",
+  );
+  counts.api_partners = partner.n;
+  const [flags] = await sql.unsafe(
+    "select count(*)::int as n from public.feature_flags where scope = 'global' and key = 'pay'",
+  );
+  counts.feature_flags = flags.n;
   if (ids.length === 0) return counts;
   for (const table of [
     "school_profiles", "school_prices", "school_opening_hours", "school_vehicles",
     "instructors", "school_faq_items", "school_jobs", "school_images",
+    "time_entries", "enrollments", "leads", "school_subscriptions",
   ]) {
     const [r] = await sql.unsafe(
       `select count(*)::int as n from public.${table} where school_id = any($1::uuid[])`,
@@ -1107,6 +1452,31 @@ async function countSeed(sql) {
     );
     counts[table] = r.n;
   }
+  // OS-P2: Betriebsdaten ohne direkte school_id-Spalte (via Enrollment/Job/Instructor).
+  const [appts] = await sql.unsafe(
+    `select count(*)::int as n from public.appointments a
+      where a.enrollment_id in (select id from public.enrollments where school_id = any($1::uuid[]))`,
+    [uuidArr(ids)],
+  );
+  counts.appointments = appts.n;
+  const [inv] = await sql.unsafe(
+    `select count(*)::int as n from public.invoices i
+      where i.enrollment_id in (select id from public.enrollments where school_id = any($1::uuid[]))`,
+    [uuidArr(ids)],
+  );
+  counts.invoices = inv.n;
+  const [avail] = await sql.unsafe(
+    `select count(*)::int as n from public.instructor_availability av
+      where av.instructor_id in (select id from public.instructors where school_id = any($1::uuid[]))`,
+    [uuidArr(ids)],
+  );
+  counts.instructor_availability = avail.n;
+  const [bewerbungen] = await sql.unsafe(
+    `select count(*)::int as n from public.job_applications b
+      where b.job_id in (select id from public.school_jobs where school_id = any($1::uuid[]))`,
+    [uuidArr(ids)],
+  );
+  counts.job_applications = bewerbungen.n;
   return counts;
 }
 

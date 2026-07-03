@@ -81,6 +81,9 @@ export function SiteFooter() {
           <Link href="/ratgeber" className="underline-offset-2 hover:text-foreground hover:underline">
             Ratgeber
           </Link>
+          <Link href="/os" className="underline-offset-2 hover:text-foreground hover:underline">
+            onelane os
+          </Link>
           <Link href="/impressum" className="underline-offset-2 hover:text-foreground hover:underline">
             Impressum
           </Link>

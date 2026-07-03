@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { cookies, headers } from "next/headers";
 import { getSiteUrl } from "@/lib/public-config";
+import { THEME_COOKIE, parseTheme } from "@/lib/theme";
 import { SiteHeader } from "@/components/layout/site-header";
 import { SiteFooter } from "@/components/layout/site-footer";
+import { ThemeInitScript } from "@/components/portal/theme-script";
 import "./globals.css";
 
 /**
@@ -51,21 +54,40 @@ export const metadata: Metadata = {
  * die globale Shell: Skip-Link, Header (Navigation), genau EIN `main`-Landmark,
  * Footer. `lang="de"` (Single-Locale DE; DACH später via eigene ccTLD-Deployments).
  * Seiten rendern ihren Inhalt OHNE eigenes `<main>` (ein Landmark pro Seite).
+ *
+ * PFADBEWUSST (OS-P1): Requests im App-Scope (`x-portal-scope: app` — setzt
+ * AUSSCHLIESSLICH der Proxy, Client-Werte werden dort verworfen) erhalten
+ *  (a) die Theme-Klasse aus dem Cookie ('dark') bzw. — ohne explizite Wahl —
+ *      das nonce-feste Inline-Script zur prefers-color-scheme-Auflösung (kein
+ *      FOUC) und
+ *  (b) KEINE Public-Shell (Header/Footer): das Portal bringt seinen eigenen
+ *      Rahmen mit (src/app/app/**). Die Public-Site erbt NIEMALS .dark —
+ *      außerhalb des App-Scopes wird weder Cookie noch Script ausgewertet.
  */
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const istAppScope = (await headers()).get("x-portal-scope") === "app";
+  let themeKlasse = "";
+  let systemThemeScript = false;
+  if (istAppScope) {
+    const theme = parseTheme((await cookies()).get(THEME_COOKIE)?.value);
+    themeKlasse = theme === "dark" ? " dark" : "";
+    systemThemeScript = theme === null; // keine explizite Wahl → System auflösen
+  }
+
   return (
-    <html lang="de" className={`${inter.variable} h-full antialiased`}>
+    <html lang="de" className={`${inter.variable} h-full antialiased${themeKlasse}`}>
       <body className="min-h-full flex flex-col">
+        {istAppScope && systemThemeScript ? <ThemeInitScript /> : null}
         <a href="#content" className="skip-link">
           Zum Inhalt springen
         </a>
-        <SiteHeader />
+        {istAppScope ? null : <SiteHeader />}
         <main id="content" className="flex flex-1 flex-col">
           {children}
         </main>
-        <SiteFooter />
+        {istAppScope ? null : <SiteFooter />}
       </body>
     </html>
   );

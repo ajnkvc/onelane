@@ -50,7 +50,26 @@ const nextConfig: NextConfig = {
      * Magic-Bytes); vor öffentlichem Betrieb zusätzlich Edge-/WAF-Limits je Route
      * (dokumentierte Auflage, SECURITY.md §8).
      */
-    serverActions: { bodySizeLimit: "10mb" },
+    /**
+     * allowedOrigins (Sicherheits-Abnahme 2026-07-03): Next prüft für mutierende
+     * Server Actions Origin gegen Host/X-Forwarded-Host und bricht bei Mismatch ab
+     * (POST-only + SameSite=Lax als Basis). Weil das Portal unter ZWEI Hosts läuft
+     * (öffentliche Domain + app-Subdomain via proxy.ts-Rewrite), werden die
+     * erlaubten Origins hier EXPLIZIT gelistet — bewusst KEIN Wildcard
+     * (`*.onelane.de` matcht die Apex-Domain ohnehin nicht und würde fremde
+     * Subdomains öffnen). Ergänzend am Edge (Cloudflare/peaknetworks): der Proxy
+     * MUSS X-Forwarded-Host selbst setzen und client-gesetzte Werte verwerfen.
+     * localhost:3000 nur für die lokale Entwicklung.
+     */
+    serverActions: {
+      bodySizeLimit: "10mb",
+      allowedOrigins: [
+        "onelane.de",
+        "www.onelane.de",
+        "app.onelane.de",
+        "localhost:3000",
+      ],
+    },
   },
 
   async headers() {

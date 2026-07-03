@@ -48,6 +48,13 @@ const DANGEROUS_HTML_MUST_SAFEJSONLD = {
     "JSXAttribute[name.name='dangerouslySetInnerHTML'] Property[key.name='__html'][value.callee.name!='safeJsonLd']",
   message: "dangerouslySetInnerHTML.__html darf ausschließlich safeJsonLd(...) sein.",
 };
+// OS-P1: das nonce-feste Theme-Inline-Script (statische Konstante ohne Nutzereingabe)
+// ist die ZWEITE eng umzäunte __html-Stelle — __html MUSS exakt themeInitScript() sein.
+const DANGEROUS_HTML_MUST_THEMESCRIPT = {
+  selector:
+    "JSXAttribute[name.name='dangerouslySetInnerHTML'] Property[key.name='__html'][value.callee.name!='themeInitScript']",
+  message: "dangerouslySetInnerHTML.__html darf hier ausschließlich themeInitScript() sein.",
+};
 // F-068: computed fetch (globalThis['fetch'] etc.) — die no-restricted-properties-Regel greift nur bei Dot-Zugriff.
 const FETCH_COMPUTED_SELECTOR = {
   selector:
@@ -66,6 +73,22 @@ const PUBLIC_SUBMISSION_IMPORT_SELECTOR = {
     "withPublicSubmissionContext (anonymer Schreibpfad) darf nur in src/modules/leads/**, " +
     "src/modules/jobs/** bzw. src/modules/ereignisse/** verwendet werden " +
     "(Submission-Tabellen leads/job_applications + Zähler-Funktion app.zaehle_ereignis).",
+};
+
+// Migration 0031: apiKeyAuthLookup ist der GESCHLOSSENE Maschinen-Auth-Pfad des
+// API-/MCP-Zugangs (GUC-gated Definer-Lookup + last_used_at). EINZIGER erlaubter
+// Importeur ist der Key-Auth-Adapter src/modules/api/db-key.ts (Block 5c hebt die
+// Sperre dort gezielt auf) — identisches Muster wie withPublicSubmissionContext.
+const API_KEY_AUTH_IMPORT_SELECTOR = {
+  // Fängt BEIDE Umgehungswege (Sicherheits-Abnahme 2026-07-03): den benannten
+  // Import `{ apiKeyAuthLookup }` UND den Namespace-Zugriff `dal.apiKeyAuthLookup`
+  // (via `import * as dal`). Der Aufruf-Selektor greift auch am Verwendungsort,
+  // nicht nur am Import — schließt die zuvor offene ImportSpecifier-only-Lücke.
+  selector:
+    "ImportSpecifier[imported.name='apiKeyAuthLookup'], MemberExpression[property.name='apiKeyAuthLookup']",
+  message:
+    "apiKeyAuthLookup (Maschinen-Auth-Pfad des API-/MCP-Zugangs, Migration 0031) darf nur " +
+    "in src/modules/api/db-key.ts verwendet werden (Key-Auth-Adapter).",
 };
 
 // --- no-restricted-imports Bausteine ---------------------------------------
@@ -168,7 +191,7 @@ const eslintConfig = defineConfig([
   {
     files: ["src/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-syntax": ["error", ...BASE_SYNTAX, PUBLIC_SUBMISSION_IMPORT_SELECTOR],
+      "no-restricted-syntax": ["error", ...BASE_SYNTAX, PUBLIC_SUBMISSION_IMPORT_SELECTOR, API_KEY_AUTH_IMPORT_SELECTOR],
       "no-restricted-imports": [
         "error",
         { paths: [...ELEVATED_PATHS, ...CLIENT_PATHS], patterns: [...ELEVATED_PATTERNS, ...CLIENT_PATTERNS] },
@@ -194,11 +217,20 @@ const eslintConfig = defineConfig([
     },
   },
 
+  // (4b) OS-P1 Theme-Inline-Script (nonce-fest, statische Konstante): einzige weitere
+  // __html-Stelle — MUSS exakt themeInitScript() sein; alle übrigen Verbote bleiben.
+  {
+    files: ["src/components/portal/theme-script.tsx"],
+    rules: {
+      "no-restricted-syntax": ["error", ...ENV_SELECTORS, ...ELEVATED_DYN_SELECTORS, DANGEROUS_HTML_MUST_THEMESCRIPT],
+    },
+  },
+
   // (5) src/modules: kein erhöhter Pfad, keine rohe DB-Verbindung, kein roher Egress (F-012/F-031/F-068).
   {
     files: ["src/modules/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-syntax": ["error", ...BASE_SYNTAX, FETCH_COMPUTED_SELECTOR, PUBLIC_SUBMISSION_IMPORT_SELECTOR],
+      "no-restricted-syntax": ["error", ...BASE_SYNTAX, FETCH_COMPUTED_SELECTOR, PUBLIC_SUBMISSION_IMPORT_SELECTOR, API_KEY_AUTH_IMPORT_SELECTOR],
       "no-restricted-imports": [
         "error",
         {
@@ -218,7 +250,27 @@ const eslintConfig = defineConfig([
   {
     files: ["src/modules/leads/**/*.{ts,tsx}", "src/modules/jobs/**/*.{ts,tsx}", "src/modules/ereignisse/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-syntax": ["error", ...BASE_SYNTAX, FETCH_COMPUTED_SELECTOR],
+      "no-restricted-syntax": ["error", ...BASE_SYNTAX, FETCH_COMPUTED_SELECTOR, API_KEY_AUTH_IMPORT_SELECTOR],
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [...MODULES_ELEVATED_PATHS, ...CLIENT_PATHS],
+          patterns: [...MODULES_ELEVATED_PATTERNS, ...CLIENT_PATTERNS, ...NETWORK_PATTERNS],
+        },
+      ],
+      "no-restricted-globals": ["error", ...FETCH_GLOBALS],
+      "no-restricted-properties": ["error", ...FETCH_PROPERTIES],
+    },
+  },
+
+  // (5c) Key-Auth-Adapter (Migration 0031): EINZIGER erlaubter Nutzungsort von
+  // apiKeyAuthLookup (geschlossener Maschinen-Auth-Pfad des API-/MCP-Zugangs).
+  // Identisch zu (5), nur ohne den API_KEY_AUTH-Selector — alle übrigen
+  // Modul-Sperren (inkl. PUBLIC_SUBMISSION) bleiben aktiv.
+  {
+    files: ["src/modules/api/db-key.ts"],
+    rules: {
+      "no-restricted-syntax": ["error", ...BASE_SYNTAX, FETCH_COMPUTED_SELECTOR, PUBLIC_SUBMISSION_IMPORT_SELECTOR],
       "no-restricted-imports": [
         "error",
         {
@@ -235,7 +287,7 @@ const eslintConfig = defineConfig([
   {
     files: ["src/server/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-syntax": ["error", ...BASE_SYNTAX, FETCH_COMPUTED_SELECTOR, PUBLIC_SUBMISSION_IMPORT_SELECTOR],
+      "no-restricted-syntax": ["error", ...BASE_SYNTAX, FETCH_COMPUTED_SELECTOR, PUBLIC_SUBMISSION_IMPORT_SELECTOR, API_KEY_AUTH_IMPORT_SELECTOR],
       "no-restricted-imports": [
         "error",
         { paths: [...ELEVATED_PATHS, ...CLIENT_PATHS], patterns: [...ELEVATED_PATTERNS, ...CLIENT_PATTERNS, ...NETWORK_PATTERNS] },
@@ -249,7 +301,7 @@ const eslintConfig = defineConfig([
   {
     files: ["src/app/api/**/*.ts"],
     rules: {
-      "no-restricted-syntax": ["error", ...BASE_SYNTAX, FETCH_COMPUTED_SELECTOR, PUBLIC_SUBMISSION_IMPORT_SELECTOR],
+      "no-restricted-syntax": ["error", ...BASE_SYNTAX, FETCH_COMPUTED_SELECTOR, PUBLIC_SUBMISSION_IMPORT_SELECTOR, API_KEY_AUTH_IMPORT_SELECTOR],
       "no-restricted-imports": ["error", { patterns: [...PRESENTATION_PATTERNS, ...NETWORK_PATTERNS] }],
       "no-restricted-globals": ["error", ...FETCH_GLOBALS],
       "no-restricted-properties": ["error", ...FETCH_PROPERTIES],

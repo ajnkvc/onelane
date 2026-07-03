@@ -197,6 +197,29 @@ export function getVermittlungEmail(): string {
 }
 
 /**
+ * Host des App-Portals (z. B. "app.onelane.de"). Server-Laufzeit-Env (kein
+ * NEXT_PUBLIC, kein Secret) — wie VERMITTLUNG_EMAIL zur Laufzeit gelesen, damit
+ * proxy.ts/origin-guard KEIN direktes process.env brauchen. `null` = kein
+ * eigener App-Host (Dev/Single-Host: /app ist direkt erreichbar). Nur
+ * hostname[:port], kleingeschrieben; ungültige Werte fail-closed → null.
+ */
+export function getAppHost(): string | null {
+  const wert = process.env.APP_HOST?.trim().toLowerCase();
+  if (!wert) return null;
+  return /^[a-z0-9][a-z0-9.-]*(:\d{1,5})?$/.test(wert) ? wert : null;
+}
+
+/**
+ * Kanonische Origins des App-Portals (für CSRF-/Origin-Allowlists). In
+ * Produktion nur https; in Dev zusätzlich http (lokale Hosts ohne TLS).
+ */
+export function getAppOrigins(): string[] {
+  const host = getAppHost();
+  if (!host) return [];
+  return isProduction() ? [`https://${host}`] : [`https://${host}`, `http://${host}`];
+}
+
+/**
  * Konfigurierter Karten-Tile-Anbieter (öffentlich, nicht-geheim). `null`, wenn
  * nicht gesetzt → der Maps-Adapter nutzt dann einen DEV-Fallback (und verweigert
  * in Produktion, weil OSMF-Public-Tiles kein Produktionsdienst sind).

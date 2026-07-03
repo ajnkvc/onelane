@@ -19,11 +19,12 @@ export const users = pgTable("users", {
   lastLogin: timestamp("last_login", { withTimezone: true }),
 });
 
-// Interne Plattformrollen (admin/support/moderator/editor) — über
+// Interne Plattformrollen (admin/support/moderator/editor/vertrieb) — über
 // app.has_platform_role(...) ausgewertet. KEINE DB-Login-Rollen.
+// 'vertrieb' seit 0029 (Vertriebspartner-Zugang); BEWUSST keine Rolle 'lehrer'.
 export const platformRoleAssignments = pgTable("platform_role_assignments", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  role: text("role").$type<"admin" | "support" | "moderator" | "editor">().notNull(),
+  role: text("role").$type<"admin" | "support" | "moderator" | "editor" | "vertrieb">().notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

@@ -19,8 +19,9 @@ import type { SessionUser } from "./session";
 /** Fachlicher Account-Typ (DB-Wahrheit: users.account_typ). */
 export type AccountType = "student" | "school_staff" | "platform_staff";
 
-/** Interne Plattformrollen (DB-Wahrheit: platform_role_assignments). */
-export type PlatformRole = "admin" | "support" | "moderator" | "editor";
+/** Interne Plattformrollen (DB-Wahrheit: platform_role_assignments).
+ *  'vertrieb' seit Migration 0029 (Vertriebspartner); BEWUSST keine Rolle 'lehrer'. */
+export type PlatformRole = "admin" | "support" | "moderator" | "editor" | "vertrieb";
 
 /**
  * Basis-Fehler für Autorisierung. Trägt `status` (HTTP) + `code` (technisch), damit der

@@ -191,3 +191,46 @@ export async function withPublicSubmissionContext<T>(work: (tx: Tx) => Promise<T
     return work(tx);
   });
 }
+
+/** sha256-Hex — das einzige Eingabeformat des Maschinen-Auth-Lookups (0031-CHECK). */
+const API_KEY_HASH_RE = /^[0-9a-f]{64}$/;
+
+/**
+ * SANKTIONIERTER MASCHINEN-AUTH-PFAD — AUSSCHLIESSLICH für den API-/MCP-
+ * Key-Lookup (Migration 0031: app.api_key_pruefen + app.api_key_beruehren).
+ *
+ * Warum ein eigener, GESCHLOSSENER Pfad (kein work-Callback!):
+ *  - api_keys.key_hash ist für app_user unsichtbar (0029) — der Lookup läuft
+ *    über eine GUC-gated SECURITY-DEFINER-Funktion (Muster 0027/0028), die NUR
+ *    innerhalb dieses Kontexts Daten liefert (app.api_key_auth = '1').
+ *  - Der Kontext ist claims-los, aber NICHT read-only (die gedrosselte
+ *    last_used_at-Fortschreibung schreibt) — deshalb bekommt der Aufrufer
+ *    KEINEN Transaktions-Zugriff: diese Funktion führt exakt die zwei
+ *    Definer-Aufrufe aus und gibt die Roh-Zeile zurück (Zod-Parsing macht der
+ *    Adapter src/modules/api/db-key.ts — der EINZIGE erlaubte Importeur,
+ *    ESLint-erzwungen wie beim Submission-Kontext).
+ *  - Hash-Format wird VOR jedem DB-Kontakt geprüft (kein Junk an die DB);
+ *    der Hash taucht in keinem Log auf (Aufrufer-Pflicht: modules/api/audit
+ *    identifiziert Schlüssel ausschließlich über prefix).
+ */
+export async function apiKeyAuthLookup(keyHash: string): Promise<Record<string, unknown> | null> {
+  if (!API_KEY_HASH_RE.test(keyHash)) return null;
+  const database = getDb();
+  await assertSafeRuntimeRole(database);
+  return database.transaction(async (tx) => {
+    await tx.execute(
+      sql`select set_config('request.jwt.claims', '', true), set_config('app.api_key_auth', '1', true)${GUARDS}`,
+    );
+    const rows = (await tx.execute(
+      sql`select key_id, prefix, scopes, status, expires_at,
+                 partner_id, partner_name, partner_status
+            from app.api_key_pruefen(${keyHash})`,
+    )) as unknown as Array<Record<string, unknown>>;
+    const zeile = rows[0];
+    if (!zeile) return null;
+    // last_used_at gedrosselt fortschreiben (max. 1 Write / 5 Min. je Schlüssel —
+    // Drossel liegt IN der Definer-Funktion, hier nur der Aufruf).
+    await tx.execute(sql`select app.api_key_beruehren(${String(zeile.key_id)}::uuid)`);
+    return zeile;
+  });
+}
