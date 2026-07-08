@@ -32,15 +32,15 @@
   "dependencies": {
     "@base-ui/react": "^1.6.0",
     "@supabase/ssr": "^0.12.0",
-    "@supabase/supabase-js": "^2.108.2",
+    "@supabase/supabase-js": "^2.110.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "drizzle-orm": "^0.45.2",
     "htmlparser2": "10.1.0",
     "ipaddr.js": "2.4.0",
     "leaflet": "^1.9.4",
-    "lucide-react": "^1.21.0",
-    "next": "16.2.9",
+    "lucide-react": "^1.23.0",
+    "next": "16.2.10",
     "postgres": "^3.4.9",
     "react": "19.2.7",
     "react-dom": "19.2.7",
@@ -51,7 +51,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.5.3",
+    "@electric-sql/pglite": "^0.5.4",
     "@tailwindcss/postcss": "^4",
     "@types/leaflet": "^1.9.21",
     "@types/node": "^22",
@@ -60,12 +60,12 @@
     "cross-env": "^10.1.0",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9",
-    "eslint-config-next": "16.2.9",
+    "eslint-config-next": "16.2.10",
     "playwright": "^1.61.1",
-    "shadcn": "^4.11.0",
+    "shadcn": "^4.13.0",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.9"
+    "vitest": "^4.1.10"
   },
   "overrides": {
     "postcss": "^8.5.10",
